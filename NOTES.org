@@ -1,0 +1,18 @@
+
+* Project Goals
+- A good matrix multiplication algorithm
+- Lib Mat Operations C++ -> C
+- Lib NN ~ Keras
+  - layer : Mat -> Mat
+  - 
+- Unit tests
+
+* HomeWork Goals #1
+- Lib Mat Operations C++ -> C (SIMD, OpenMP)
+- 
+
+
+* Video 09/02/2025
+- https://playground.tensorflow.org/#activation=sigmoid&batchSize=10&dataset=xor&regDataset=reg-plane&learningRate=0.1&regularizationRate=0&noise=5&networkShape=3,2&seed=0.09704&showTestData=false&discretize=false&percTrainData=80&x=true&y=true&xTimesY=false&xSquared=false&ySquared=false&cosX=false&sinX=false&cosY=false&sinY=false&collectStats=false&problem=classification&initZero=false&hideText=false
+- https://en.algorithmica.org/hpc/algorithms/matmul/
+- https://curc.readthedocs.io/en/latest/programming/OpenMP-C.html
