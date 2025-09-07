@@ -3,20 +3,25 @@
 
 #include <stddef.h>
 
-/* memory_allocator_func_type: function pointer type for allocating memory */
-typedef void *(*memory_allocator_func_type)(size_t);
+/* Matf32_fill: set all elements of matrix `A` of `nrows` and `ncols` to value a */
+extern void Matf32_fill(float *A, size_t nrows, size_t ncols, float a);
 
-/* memory_free_func_type: function pointer type for freeing memory */
-typedef void (memory_free_func_type)(void *);
+/* Matf32_add_scalar: add scalar a to all elements of matrix `A` of `nrows` and `ncols` */
+extern void Matf32_add_scalar(float *A, size_t nrows, size_t ncols, float a);
 
-/* MatLibAllocatorType: struct holding function pointers for memory allocation and freeing */
-typedef struct MatLibAllocatorType {
-	memory_allocator_func_type mem_alloc; /* allocator function */
-	memory_free_func_type mem_free;       /* free function */
-} MatLibAllocatorType;
+/* Matf32_mul_scalar: multiply all elements of matrix `A` of `nrows` and `ncols` by scalar a */
+extern void Matf32_mul_scalar(float *A, size_t nrows, size_t ncols, float a);
 
-/* current_mat_lib_allocator: pointer to the currently used allocator */
-extern MatLibAllocatorType *current_mat_lib_allocator;
+/* Matf32_add: element-wise addition of matrices A and B, result in C (all of size nrows x ncols) */
+extern void Matf32_add(const float *A, const float *B, float *C, size_t nrows, size_t ncols);
 
+/* Matf32_mul: element-wise (Hadamard) multiplication of matrices A and B, result in C (all of size nrows x ncols) */
+extern void Matf32_mul(const float *A, const float *B, float *C, size_t nrows, size_t ncols);
+
+/* Matf32_dot: matrix product C = A * B 
+ * A is (nrowsA x ncolsA), B is (ncolsA x ncolsB), result C is (nrowsA x ncolsB)
+ */
+extern void Matf32_dot(const float *A, const float *B, float *C,
+                       size_t nrowsA, size_t ncolsA, size_t ncolsB);
 
 #endif
