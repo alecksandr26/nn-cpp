@@ -19,16 +19,17 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-set(CMAKE_CXX_FLAGS "-Wall -Wextra -pedantic")
-set(CMAKE_C_FLAGS "-Wall -Wextra -pedantic")
+# -fsanitize=address-fsanitize=address
+set(CMAKE_CXX_FLAGS "-Wall -Wextra -pedantic ${CMAKE_CXX_FLAGS}")
+set(CMAKE_C_FLAGS "-Wall -Wextra -pedantic ${CMAKE_C_FLAGS}")
 set(CMAKE_CXX_FLAGS_DEBUG "-ggdb")
 set(CMAKE_C_FLAGS_DEBUG "-ggdb")
 set(CMAKE_CXX_FLAGS_RELEASE "-O2 -DNDEBUG -ffast-math -march=native")
 set(CMAKE_C_FLAGS_RELEASE "-O2 -DNDEBUG -ffast-math -march=native")
 
 if(DEFINED CMAKE_BUILD_TYPE AND CMAKE_BUILD_TYPE STREQUAL "Release")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_RELEASE}")
-  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_RELEASE}")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS_RELEASE} ${CMAKE_CXX_FLAGS} ")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS_RELEASE} ${CMAKE_C_FLAGS}")
 else()
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CMAKE_CXX_FLAGS_DEBUG}")
   set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${CMAKE_C_FLAGS_DEBUG}")
@@ -86,5 +87,27 @@ target_link_libraries(
 
 enable_testing()
 
+
+file(GLOB TEST_SOURCES
+  "${CMAKE_CURRENT_SOURCE_DIR}/${TEST_DIR}/*.cpp"
+)
+
+add_executable(
+  nn_tests
+  ${TEST_SOURCES}
+)
+
+target_link_libraries(
+  nn_tests
+  PRIVATE
+  nn
+  GTest::gtest
+  GTest::gtest_main
+)
+
+add_test(
+  NAME nn_tests
+  COMMAND mat_tests
+)
 
 

@@ -134,7 +134,7 @@ TEST(Matf32Test, DotProductIdentityRight) {
 	for (size_t i = 0; i < N; ++i)
 		for (size_t j = 0; j < N; ++j)
 			I[i * N + j] = (i == j) ? 1.0f : 0.0f;
-
+	
 	Matf32_dot(A, I, C, N, N, N);
 	expect_array_near(A, C, N*N);
 }
@@ -183,4 +183,84 @@ TEST(Matf32Test, DotProductNonSquare) {
 
 	Matf32_dot(A, B, out, R, K, Cc);
 	expect_array_near(expected, out, R*Cc);
+}
+
+
+// --- Test for Matf32_copy ---
+TEST(Matf32Test, CopyMatrix) {
+	const size_t rows = 2;
+	const size_t cols = 3;
+	const size_t total = rows * cols;
+
+	float src[total];
+	float dst[total];
+
+	fill_seq(src, total, 1.0f, 2.0f); // 1,3,5,7,9,11
+	for (size_t i = 0; i < total; ++i) dst[i] = 0.0f;
+	
+	Matf32_copy(src, dst, rows, cols);
+	expect_array_eq(src, dst, total);
+}
+
+TEST(Matf32Test, MixedValues) {
+	float A[5] = {2.5f, -1.5f, 0.0f, 4.0f, -2.0f};
+	EXPECT_FLOAT_EQ(Matf32_grand_sum(A, 1, 5), 3.0f); // 2.5-1.5+0+4-2 = 3
+}
+
+TEST(Matf32Test, SubScalarBasic) {
+	float A[4] = {5.0f, 6.0f, 7.0f, 8.0f};
+	Matf32_sub_scalar(A, 2, 2, 2.0f);  // subtract 2 from each element
+
+	float expected[4] = {3.0f, 4.0f, 5.0f, 6.0f};
+	expect_array_eq(expected, A, 4);
+}
+
+TEST(Matf32Test, DivScalarBasic) {
+	float A[4] = {2.0f, 4.0f, 6.0f, 8.0f};
+	Matf32_div_scalar(A, 2, 2, 2.0f);  // divide each element by 2
+
+	float expected[4] = {1.0f, 2.0f, 3.0f, 4.0f};
+	expect_array_eq(expected, A, 4);
+}
+
+
+TEST(Matf32Test, SubBasic) {
+	float A[4] = {5.0f, 7.0f, 9.0f, 11.0f};
+	float B[4] = {1.0f, 2.0f, 3.0f, 4.0f};
+	float C[4];
+
+	Matf32_sub(A, B, C, 2, 2);
+
+	float expected[4] = {4.0f, 5.0f, 6.0f, 7.0f};
+	expect_array_eq(expected, C, 4);
+}
+
+
+TEST(Matf32Test, DivBasic) {
+	float A[4] = {10.0f, 20.0f, 30.0f, 40.0f};
+	float B[4] = {2.0f, 4.0f, 5.0f, 10.0f};
+	float C[4];
+
+	Matf32_div(A, B, C, 2, 2);
+
+	float expected[4] = {5.0f, 5.0f, 6.0f, 4.0f};
+	expect_array_eq(expected, C, 4);
+}
+
+TEST(Matf32Test, TransposeSquareMatrix) {
+	float A[4] = {1, 2,
+		      3, 4}; // 2x2 matrix
+	float B[4] = {0};
+
+	Matf32_transpose(A, B, 2, 2);
+
+	float expected[4] = {1, 3,
+			     2, 4};
+	expect_array_eq(expected, B, 4);
+}
+
+TEST(Matf32Test, SumSquareMatrix) {
+	float A[4] = {1, 2, 3, 4}; // 2x2 matrix
+	float sum = Matf32_grand_sum(A, 2, 2);
+	EXPECT_FLOAT_EQ(sum, 10.0f);
 }
