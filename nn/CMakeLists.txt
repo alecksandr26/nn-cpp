@@ -89,7 +89,7 @@ enable_testing()
 
 
 file(GLOB TEST_SOURCES
-  "${CMAKE_CURRENT_SOURCE_DIR}/${TEST_DIR}/*.cpp"
+  "${CMAKE_CURRENT_SOURCE_DIR}/${TEST_DIR}/test_*.cpp"
 )
 
 add_executable(
