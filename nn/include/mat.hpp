@@ -126,6 +126,7 @@ namespace nn::mathops {
 		Mat<T> transpose_copy(void) const;
 		Mat<T> &resize(const Shape &shape);
 		Mat<T> &resize(std::size_t rows, std::size_t cols);
+		Mat<T> &fill(T a);
 		T grand_sum(void) const;
 		const Shape &get_shape(void) const;
 		T *get_mat_raw(void) const;

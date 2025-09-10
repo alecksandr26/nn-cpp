@@ -14,6 +14,8 @@ public:
 		: Layer<T>(trainable, in_size, out_size, std::move(name)) {}
 	FooLayer(bool trainable, Shape input_shape, Shape output_shape, std::string name)
 		: Layer<T>(trainable, input_shape, output_shape, std::move(name)) {}
+	~FooLayer(void) override = default;
+	
 
 	Mat<T> operator()(const Mat<T> &X) override {
 		return X; // trivial
@@ -23,8 +25,9 @@ public:
 		return x; // trivial
 	}
 
-	Layer<T>& build(const Shape &input_shape) override {
+	Layer<T>& build(const Shape &input_shape, const Shape &output_shape) override {
 		this->set_input_shape(input_shape);
+		this->set_output_shape(output_shape);
 		return *this;
 	}
 };
@@ -71,7 +74,7 @@ TEST(LayerTest, SizeSetGet) {
 TEST(LayerTest, BuildSetsInputShape) {
 	FooLayer<float> layer;
 	Shape new_shape{10, 20};
-	layer.build(new_shape);
+	layer.build(new_shape, new_shape);
 	EXPECT_EQ(layer.get_input_shape(), new_shape);
 }
 

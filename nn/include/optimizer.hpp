@@ -35,14 +35,11 @@ namespace nn::optimizers {
 		virtual void update(Mat<T> &weights, const Mat<T> &signal_update, const Mat<T> &input) = 0;
 		// virtual Mat<T> get_initial_signal_update(void);
 	protected:
-		
-		
-		
 		std::string name_;
 		double learning_rate_;
 	};
 
-
+	
 	template <typename T>
 	class PerceptronOptimizer : public Optimizer<T> {
 	public:

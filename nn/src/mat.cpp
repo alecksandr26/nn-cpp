@@ -421,6 +421,15 @@ Mat<T> nn::mathops::Mat<T>::transpose_copy(void) const
 	return C;
 }
 
+template <typename T>
+Mat<T> &nn::mathops::Mat<T>::fill(T a)
+{
+	if (mat_ == NULL)
+		throw std::invalid_argument("invalid argument: Empty Matrix `this`");
+	Mat_fill(mat_, shape_, a);
+	return *this;
+}
+
 template<typename T>
 const Shape &nn::mathops::Mat<T>::get_shape(void) const
 {

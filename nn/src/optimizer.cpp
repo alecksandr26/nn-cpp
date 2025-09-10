@@ -69,9 +69,9 @@ nn::optimizers::PerceptronOptimizer<T>::PerceptronOptimizer(float learning_rate)
 }
 
 template <typename T>
-void nn::optimizers::PerceptronOptimizer<T>::update(Mat<T> &weights, const Mat<T> &error, const Mat<T> &inputs)
+void nn::optimizers::PerceptronOptimizer<T>::update(Mat<T> &weights, const Mat<T> &error, const Mat<T> &input)
 {
-	weights += (error * Optimizer<T>::learning_rate_).dot(inputs.transpose_copy());
+	weights += (error * Optimizer<T>::learning_rate_).dot(input.transpose_copy());
 }
 
 template class nn::optimizers::PerceptronOptimizer<float>;

@@ -9,7 +9,8 @@
 namespace nn::loss_funcs {
 	using namespace mathops;
 	using namespace models;
-	
+
+	// TODO: Write a few unit tests for the loss function
 	template <typename T>
 	class Loss {
 	public:
@@ -77,9 +78,9 @@ namespace nn::loss_funcs {
 		// Stores last computed loss for batch or single example
 		Mat<T> last_loss_;
 	};
-
-
-
+	
+	
+	
 	template <typename T>
 	class MeanAbsoluteError : public Loss<T> {
 	public:

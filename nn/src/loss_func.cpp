@@ -140,7 +140,7 @@ nn::loss_funcs::MeanAbsoluteError<T>::MeanAbsoluteError(const std::vector<Mat<T>
 {
 }
 
-// TODO: Find the way to optimize this thing
+// TODO: Find the way to optimize this thing, like create a few mat functions
 
 // Evaluate MAE on all stored inputs/outputs
 template <typename T>
