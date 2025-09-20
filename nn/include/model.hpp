@@ -1,20 +1,27 @@
 #ifndef NN_MODEL_INCLUDED
 #define NN_MODEL_INCLUDED
 
+#include "utils.hpp"
 #include "mat.hpp"
 
 namespace nn::models {
+	using namespace utils;
 	using namespace mathops;
 	
-	template <typename T>
-	class Model {
+	class Model : protected GenericVTable {
 	public:
-		virtual Mat<T> operator()(const Mat<T> &X) = 0;
+		using GenericVTable::GenericVTable;
+		
+		virtual ~Model(void) = 0;
+		
+		template <typename T>
+		Mat<T> operator()(const Mat<T> &X)
+		{
+			return get_func<Mat<T>, const Mat<T> &>("feedforward")(X);
+		}
+		
 	};
 }
 
 #endif
-
-
-
 

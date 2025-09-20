@@ -5,9 +5,15 @@
 
 using namespace nn::mathops;
 
+
+nn::mathops::Shape::Shape(void)
+	: rows(0), cols(0)
+{
+}
+
 nn::mathops::Shape::Shape(const std::initializer_list<std::size_t> &l)
 {
-	if (l.size() > 2)
+	if (l.size() != 2)
 		throw std::invalid_argument("invalid argument: Invalid list of initializer");
 	rows = *(l.begin());
 	cols = *(l.begin() + 1);
@@ -41,28 +47,40 @@ void nn::mathops::Shape::operator=(const Shape &s)
 	cols = s.cols;
 }
 
+template <typename T>
+nn::mathops::Mat<T>::Mat(void) : shape_(0, 0), mat_shared_mem_(false), mat_(nullptr)
+{
+}
+
 template<typename T>
-nn::mathops::Mat<T>::Mat(std::size_t rows, std::size_t cols) : shape_(rows, cols)
+nn::mathops::Mat<T>::Mat(std::size_t rows, std::size_t cols, T *mat)
+	: shape_(rows, cols), mat_(mat)
 {
 	if (rows == 0 || cols == 0)
 		throw std::invalid_argument("invalid argument: invalid shape of matrix");
+
+	mat_shared_mem_ = mat != nullptr;
 	
 	// TODO: Lets add a custom allocator
-	mat_ = new T[rows * cols];
+	if (!mat_shared_mem_) mat_ = new T[rows * cols];
 }
 
 template<typename T>
-nn::mathops::Mat<T>::Mat(const Shape &shape) : shape_(shape)
+nn::mathops::Mat<T>::Mat(const Shape &shape, T *mat)
+	: shape_(shape), mat_(mat)
 {
 	if (shape.rows == 0 || shape.cols == 0)
 		throw std::invalid_argument("invalid argument: invalid shape of matrix");
+
+	mat_shared_mem_ = mat != nullptr;
 	
 	// TODO: Lets add a custom allocator
-	mat_ = new T[shape.rows * shape.cols];
+	if (!mat_shared_mem_) mat_ = new T[shape.rows * shape.cols];
 }
 
 template<typename T>
-nn::mathops::Mat<T>::Mat(const Mat<T> &A) : shape_(A.get_shape())
+nn::mathops::Mat<T>::Mat(const Mat<T> &A)
+	: shape_(A.get_shape()), mat_shared_mem_(false)
 {
 	const Shape &shape = A.get_shape();
 	const T *src = A.get_mat_raw();
@@ -73,14 +91,17 @@ nn::mathops::Mat<T>::Mat(const Mat<T> &A) : shape_(A.get_shape())
 }
 
 template<typename T>
-nn::mathops::Mat<T>::Mat(Mat<T> &&A) : shape_(A.get_shape())
+nn::mathops::Mat<T>::Mat(Mat<T> &&A)
+	: shape_(A.get_shape())
 {
+	mat_shared_mem_ = A.mat_shared_mem_;
 	mat_ = A.mat_;
 	A.mat_ = NULL;
 }
 
 template<typename T>
 nn::mathops::Mat<T>::Mat(const std::initializer_list<std::initializer_list<T>> &A)
+	: mat_shared_mem_(false)
 {
 	if (A.size() == 0) throw std::invalid_argument("invalid argument: Empty initializer structure");
 	size_t n = A.begin()->size();
@@ -88,7 +109,9 @@ nn::mathops::Mat<T>::Mat(const std::initializer_list<std::initializer_list<T>> &
 		if (n != (A.begin() + i)->size())
 			throw std::invalid_argument("invalid argument: Invalid structure of the matrix");
 	
-	resize(A.size(), n);
+	shape_.rows = A.size();
+	shape_.cols = n;
+	mat_ = new T[shape_.rows * shape_.cols];   // allocate directly
 	
 	for (size_t i = 0; i < shape_.rows; i++)
 		for (size_t j = 0; j < shape_.cols; j++)
@@ -99,7 +122,7 @@ template<typename T>
 nn::mathops::Mat<T>::~Mat(void)
 {
 	// TODO: Lets add a custom free
-	delete[] mat_;
+	if (!mat_shared_mem_) delete[] mat_;
 	mat_ = NULL;
 }
 
@@ -122,10 +145,24 @@ void nn::mathops::Mat<T>::operator=(const std::initializer_list<std::initializer
 template<typename T>
 void nn::mathops::Mat<T>::operator=(Mat<T> &&A)
 {
-	if (mat_ != NULL)
+	if (mat_ != NULL && !mat_shared_mem_)
 		delete[] mat_;
+	mat_shared_mem_ = A.mat_shared_mem_;
 	mat_ = A.mat_;
 	A.mat_ = NULL;
+	shape_ = A.shape_;
+}
+
+template<typename T>
+void nn::mathops::Mat<T>::operator=(const Mat<T> &A)
+{
+	if (this == &A) return;
+	// TODO: add the custom allocator
+	T *new_mat = new T[A.shape_.rows * A.shape_.cols];
+	Mat_copy(A.mat_, new_mat, A.shape_);
+
+	if (!mat_shared_mem_) delete[] mat_;
+	mat_ = new_mat;
 	shape_ = A.shape_;
 }
 
@@ -136,14 +173,22 @@ Mat<T> nn::mathops::Mat<T>::dot(const Mat<T> &A) const
 		throw std::invalid_argument("invalid argument: Empty Matrix `this`");
 	if (A.get_mat_raw() == NULL)
 		throw std::invalid_argument("invalid argument: Empty Matrix `A`");
-	const Shape &shape = A.get_shape();
-	if (shape_.rows != shape.cols)
-		throw std::invalid_argument("invalid argument: invalid structure rows != cols");
-	
-	Mat<T> C(shape_.rows, shape.cols);
-	Mat_dot(mat_, A.get_mat_raw(), C.get_mat_raw(), shape_, shape.cols);
+
+	const Shape &shapeA = this->shape_;   // shape of "this"
+	const Shape &shapeB = A.get_shape();  // shape of argument
+
+	// Validation: cols(this) == rows(A)
+	if (shapeA.cols != shapeB.rows)
+		throw std::invalid_argument("invalid argument: cols(this) != rows(A)");
+
+	// Result shape: (rows(this) × cols(A))
+	Mat<T> C(shapeA.rows, shapeB.cols);
+
+	// Perform multiplication
+	Mat_dot(mat_, A.get_mat_raw(), C.get_mat_raw(), shapeA, shapeB.cols);
 	return C;
 }
+
 
 template <typename T>
 Mat<T> &nn::mathops::Mat<T>::dot_and_assign(const Mat<T> &A)
@@ -188,10 +233,7 @@ Mat<T> &nn::mathops::Mat<T>::operator+=(const Mat<T> &A)
 		throw std::invalid_argument("invalid argument: Empty Matrix `A`");
 	if (A.get_shape() != shape_)
 		throw std::invalid_argument("invalid argument: invalid structure `this.shape` != `A.shape`");
-	Mat<T> C(shape_);
-	Mat_add(mat_, A.get_mat_raw(), C.get_mat_raw(), shape_);
-	*this = std::move(C);
-	
+	Mat_add(mat_, A.get_mat_raw(), mat_, shape_);
 	return *this;
 }
 
@@ -219,10 +261,7 @@ Mat<T> &nn::mathops::Mat<T>::operator-=(const Mat<T> &A)
 		throw std::invalid_argument("invalid argument: Empty Matrix `A`");
 	if (A.get_shape() != shape_)
 		throw std::invalid_argument("invalid argument: invalid structure `this.shape` != `A.shape`");
-	Mat<T> C(shape_);
-	Mat_sub(mat_, A.get_mat_raw(), C.get_mat_raw(), shape_);
-	*this = std::move(C);
-	
+	Mat_sub(mat_, A.get_mat_raw(), mat_, shape_);
 	return *this;
 }
 
@@ -246,10 +285,7 @@ Mat<T> &nn::mathops::Mat<T>::operator*=(const Mat<T> &A)
 		throw std::invalid_argument("invalid argument: Empty Matrix `A`");
 	if (A.get_shape() != shape_)
 		throw std::invalid_argument("invalid argument: invalid structure `this.shape` != `A.shape`");
-	Mat<T> C(shape_);
-	Mat_mul(mat_, A.get_mat_raw(), C.get_mat_raw(), shape_);
-	*this = std::move(C);
-	
+	Mat_mul(mat_, A.get_mat_raw(), mat_, shape_);
 	return *this;
 }
 
@@ -262,7 +298,7 @@ Mat<T> nn::mathops::Mat<T>::operator/(const Mat<T> &A) const
 		throw std::invalid_argument("invalid argument: Empty Matrix `A`");
 	if (A.get_shape() != shape_)
 		throw std::invalid_argument("invalid argument: invalid structure `this.shape` != `A.shape`");
-
+	
 	Mat<T> C(shape_);
 	Mat_div(mat_, A.get_mat_raw(), C.get_mat_raw(), shape_);
 	return C;
@@ -277,11 +313,24 @@ Mat<T> &nn::mathops::Mat<T>::operator/=(const Mat<T> &A)
 		throw std::invalid_argument("invalid argument: Empty Matrix `A`");
 	if (A.get_shape() != shape_)
 		throw std::invalid_argument("invalid argument: invalid structure `this.shape` != `A.shape`");
-	Mat<T> C(shape_);
-	Mat_div(mat_, A.get_mat_raw(), C.get_mat_raw(), shape_);
-	*this = std::move(C);
-	
+	Mat_div(mat_, A.get_mat_raw(), mat_, shape_);
 	return *this;
+}
+
+template <typename T>
+bool nn::mathops::Mat<T>::operator==(const Mat<T> &A) const
+{
+	if (shape_ != A.get_shape())
+		return false;
+	return Mat_equal(mat_, A.get_mat_raw(), shape_);
+}
+
+template <typename T>
+bool nn::mathops::Mat<T>::operator!=(const Mat<T> &A) const
+{
+	if (shape_ != A.get_shape())
+		return true;
+	return !Mat_equal(mat_, A.get_mat_raw(), shape_);
 }
 
 template <typename T>
@@ -370,7 +419,7 @@ Mat<T> &nn::mathops::Mat<T>::resize(const Shape &shape)
 	T *new_resized_mat = new T[shape.rows * shape.cols];
 	if (mat_ != NULL) {
 		Mat_copy(mat_, new_resized_mat, Shape(std::min(shape.rows, shape_.rows), std::min(shape.cols, shape_.cols)));
-		delete[] mat_;
+		if (!mat_shared_mem_) delete[] mat_;
 	}
 	mat_ = new_resized_mat;
 	shape_.rows = shape.rows;
@@ -390,7 +439,7 @@ Mat<T> &nn::mathops::Mat<T>::resize(std::size_t rows, std::size_t cols)
 	T *new_resized_mat = new T[rows * cols];
 	if (mat_ != NULL) {
 		Mat_copy(mat_, new_resized_mat, Shape(std::min(rows, shape_.rows), std::min(cols, shape_.cols)));
-		delete[] mat_;
+		if (!mat_shared_mem_) delete[] mat_;
 	}
 	
 	mat_ = new_resized_mat;
@@ -430,10 +479,47 @@ Mat<T> &nn::mathops::Mat<T>::fill(T a)
 	return *this;
 }
 
+template <typename T>
+Mat<T> &nn::mathops::Mat<T>::rand_uniform(T min_val, T max_val)
+{
+	if (mat_ == NULL)
+		throw std::invalid_argument("invalid argument: Empty Matrix `this`");
+	Mat_rand_uniform(mat_, shape_, min_val, max_val);
+	return *this;
+}
+
+template <typename T>
+Mat<T> &nn::mathops::Mat<T>::rand_normal(T mean, T stddev)
+{
+	if (mat_ == NULL)
+		throw std::invalid_argument("invalid argument: Empty Matrix `this`");
+	Mat_rand_normal(mat_, shape_, mean, stddev);
+	return *this;
+}
+
 template<typename T>
 const Shape &nn::mathops::Mat<T>::get_shape(void) const
 {
 	return shape_;
+}
+
+template<typename T>
+Mat<T> &nn::mathops::Mat<T>::set_shape(const Shape &shape)
+{
+	shape_ = shape;
+	return *this;
+}
+
+template <typename T>
+std::size_t nn::mathops::Mat<T>::rows(void) const
+{
+	return shape_.rows;
+}
+
+template <typename T>
+std::size_t nn::mathops::Mat<T>::cols(void) const
+{
+	return shape_.cols;
 }
 
 template<typename T>
@@ -442,6 +528,17 @@ T *nn::mathops::Mat<T>::get_mat_raw(void) const
 	return mat_;
 }
 
+template <typename T>
+Mat<T> &nn::mathops::Mat<T>::get_row(std::size_t row)
+{
+	if (fetched_rows_.count(row) > 0) {
+		return fetched_rows_[row];
+	}
+	// the constructor where we share the allocation of the original matrix
+	// 	fetched_rows_[row] = std::move(Mat<T>(1, cols(), mat_ + cols() * row));
+	fetched_rows_.insert({row, std::move(Mat<T>(1, cols(), mat_ + cols() * row))});
+	return fetched_rows_[row];
+}
 
 template <typename T>
 T nn::mathops::Mat<T>::grand_sum(void) const
@@ -450,9 +547,23 @@ T nn::mathops::Mat<T>::grand_sum(void) const
 }
 
 template <typename T>
-T &nn::mathops::Mat<T>::operator()(std::size_t row, std::size_t col) const
+T &nn::mathops::Mat<T>::operator()(std::size_t row, std::size_t col)
 {
 	return mat_[row * shape_.cols + col];
+}
+
+template <typename T>
+const T &nn::mathops::Mat<T>::operator()(std::size_t row, std::size_t col) const
+{
+	return mat_[row * shape_.cols + col];
+}
+
+
+template <typename T>
+Mat<T> &nn::mathops::Mat<T>::set_mat_raw(T *mat)
+{
+	mat_ = mat;
+	return *this;
 }
 
 template class nn::mathops::Mat<float>;

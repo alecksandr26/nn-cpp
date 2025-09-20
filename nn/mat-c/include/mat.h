@@ -1,10 +1,17 @@
 #ifndef MAT_INCLUDED
 #define MAT_INCLUDED
 
+#include <stdbool.h>
 #include <stddef.h>
 
 /* --- Mat 32 bit operations --- */
 
+/* Matf32_rand_uniform: fill matrix A (nrows x ncols) with samples from U[min, max) */
+extern void Matf32_rand_uniform(float *A, size_t nrows, size_t ncols, float min, float max);
+
+/* Matf32_rand_normal: fill matrix A (nrows x ncols) with samples from N(mean, stddev^2) */
+extern void Matf32_rand_normal(float *A, size_t nrows, size_t ncols, float mean, float stddev);
+ 
 /* Matf32_fill: set all elements of matrix `A` of `nrows` and `ncols` to value a */
 extern void Matf32_fill(float *A, size_t nrows, size_t ncols, float a);
 
@@ -50,7 +57,11 @@ extern void Matf32_copy(const float *src, float *dst, size_t nrows,
 extern float Matf32_grand_sum(const float *A, size_t nrows, size_t ncols);
 
 /* Matf32_transpose: Transposes an nrows x ncols matrix A into B (B = A^T)  */
-extern void Matf32_transpose(const float *A, float *B, size_t nrows, size_t ncols);
+extern void Matf32_transpose(const float *A, float *B, size_t nrows,
+                             size_t ncols);
+
+/* Matf32_equal: Evaluates if A ≈ B within epsilon tolerance */
+extern bool Matf32_equal(const float *A, const float *B, size_t nrows, size_t ncols, float eps);
 
 // TODO: Build the implemenations, tests and don't forget sub and div matrices, sub and div scalar, and grand sum
 

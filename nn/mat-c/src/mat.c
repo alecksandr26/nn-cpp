@@ -1,7 +1,46 @@
 #include <assert.h>
+#include <time.h>
 #include <stddef.h>
+#include <stdlib.h>
+#include <math.h>
+#include <stdbool.h>
 
 /* TODO: Implement the optional versions */
+
+
+/* Matf32_rand_uniform: fill matrix A (nrows x ncols) with samples from U[min, max) */
+void Matf32_rand_uniform(float *A, size_t nrows, size_t ncols, float min, float max) {
+	assert(A && "A can't be null");
+	srand((unsigned int) time(NULL));  // seed with current time
+	size_t total = nrows * ncols;
+	for (size_t i = 0; i < total; i++) {
+		float u = (float) rand() / (float) RAND_MAX; // uniform [0,1]
+		A[i] = min + (max - min) * u;
+	}
+}
+
+/* Matf32_rand_normal: fill matrix A (nrows x ncols) with samples from N(mean, stddev^2) */
+void Matf32_rand_normal(float *A, size_t nrows, size_t ncols, float mean, float stddev) {
+	assert(A && "A can't be null");
+	srand((unsigned int) time(NULL));  // seed with current time
+	size_t total = nrows * ncols;
+	for (size_t i = 0; i < total; i += 2) {
+		// Generate two uniform random numbers in (0,1)
+		float u1 = (rand() + 1.0f) / (RAND_MAX + 2.0f);
+		float u2 = (rand() + 1.0f) / (RAND_MAX + 2.0f);
+		
+		// Box–Muller transform
+		float mag = stddev * sqrtf(-2.0f * logf(u1));
+		float z0 = mag * cosf(2.0f * M_PI * u2) + mean;
+		float z1 = mag * sinf(2.0f * M_PI * u2) + mean;
+		
+		// Store results (check bounds for odd-sized matrices)
+		A[i] = z0;
+		if (i + 1 < total) {
+			A[i + 1] = z1;
+		}
+	}
+}
 
 /* Matf32_fill: set all elements of matrix `A` of `nrows` and `ncols` to value a */
 void Matf32_fill(float *A, size_t nrows, size_t ncols, float a) {
@@ -139,4 +178,21 @@ void Matf32_transpose(const float *A, float *B, size_t nrows, size_t ncols)
 	}
 }
 
+// TODO: Add a unit test of this
+
+/* Matf32_equal: Evaluates if A ≈ B within epsilon tolerance */
+bool Matf32_equal(const float *A, const float *B, size_t nrows, size_t ncols, float eps)
+{
+    assert(A && "A can't be null");
+    assert(B && "B can't be null");
+
+    size_t total = nrows * ncols;
+    for (size_t i = 0; i < total; i++) {
+	    if (fabs(A[i] - B[i]) > eps) {
+		    return false;
+	    }
+    }
+
+    return true;
+}
 

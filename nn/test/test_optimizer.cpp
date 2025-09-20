@@ -7,26 +7,34 @@ using namespace nn::optimizers;
 
 // Dummy concrete optimizer for testing
 template <typename T>
-class FooOptimizer : public Optimizer<T> {
+class FooOptimizer : public Optimizer {
 public:
 	// Forward to base constructors
 	FooOptimizer(std::string name, double lr)
-		: nn::optimizers::Optimizer<T>(std::move(name), lr) {}
+		: nn::optimizers::Optimizer(std::move(name), lr)
+	{
+		register_funcs();
+	}
 
 	FooOptimizer(double lr)
-		: nn::optimizers::Optimizer<T>(lr) {}
+		: nn::optimizers::Optimizer(lr)
+	{
+		register_funcs();
+	}
 
-	// Implement pure virtual update (no-op)
-	void update(Mat<T>&, const Mat<T>&, const Mat<T>&) override {}
+	FooOptimizer &register_funcs(void) override
+	{
+		register_func<void, Mat<T> &, const Mat<T> &, const Mat<T> &>
+			("update", [this](Mat<T> &, const Mat<T> &, const Mat<T> &) -> void {
+				
+			});
+		return *this;
+	}
 };
-
-// Define pure virtual destructor
-template <typename T>
-nn::optimizers::Optimizer<T>::~Optimizer(void) = default;
 
 TEST(OptimizerTest, ConstructorWithName) {
 	FooOptimizer<float> opt("TestOpt", 0.01);
-
+	
 	EXPECT_EQ(opt.get_name(), "TestOpt");
 	EXPECT_DOUBLE_EQ(opt.get_learning_rate(), 0.01);
 }

@@ -40,4 +40,5 @@
 # debug information files
 *.dwo
 
-build/*
+nn/build/*
+demos/demo-1/build/*

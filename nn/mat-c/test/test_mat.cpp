@@ -1,3 +1,4 @@
+#include <cmath>
 #include <gtest/gtest.h>
 #include <algorithm> // for std::copy
 #include <cstring>   // for std::memcmp
@@ -30,6 +31,94 @@ static void fill_seq(float *A, size_t n, float start = 1.0f, float step = 1.0f) 
 }
 
 /* --- Tests --- */
+
+TEST(Matf32Test, RandUniform) {
+	const size_t nrows = 20;
+	const size_t ncols = 20;
+	const float min = -5.0f;
+	const float max = 5.0f;
+
+	float A[nrows * ncols];
+
+	// Initialize to zeros
+	for (size_t i = 0; i < nrows * ncols; i++) {
+		A[i] = 0.0f;
+	}
+
+	// Call the function under test
+	Matf32_rand_uniform(A, nrows, ncols, min, max);
+
+	// Check: not all elements are still zero
+	bool all_zero = true;
+	for (size_t i = 0; i < nrows * ncols; i++) {
+		if (A[i] != 0.0f) {
+			all_zero = false;
+			break;
+		}
+	}
+	EXPECT_FALSE(all_zero) << "Matrix was not filled with random values.";
+
+	// Check: all values lie within [min, max]
+	for (size_t i = 0; i < nrows * ncols; i++) {
+		EXPECT_GE(A[i], min);
+		EXPECT_LE(A[i], max);
+	}
+
+	// Optional: check average is roughly in the middle
+	float sum = 0.0f;
+	for (size_t i = 0; i < nrows * ncols; i++) {
+		sum += A[i];
+	}
+	float empirical_mean = sum / (nrows * ncols);
+	EXPECT_NEAR(empirical_mean, (min + max) / 2.0f, 0.5f);
+}
+
+
+TEST(Matf32Test, RandNormal) {
+	const size_t nrows = 50;
+	const size_t ncols = 50;
+	const float mean = 0.0f;
+	const float stddev = 1.0f;
+
+	float A[nrows * ncols];
+
+	// Initialize to zeros
+	for (size_t i = 0; i < nrows * ncols; i++) {
+		A[i] = 0.0f;
+	}
+
+	// Call the function under test
+	Matf32_rand_normal(A, nrows, ncols, mean, stddev);
+
+	// Check: not all values are still zero
+	bool all_zero = true;
+	for (size_t i = 0; i < nrows * ncols; i++) {
+		if (A[i] != 0.0f) {
+			all_zero = false;
+			break;
+		}
+	}
+	EXPECT_FALSE(all_zero) << "Matrix was not filled with random values.";
+
+	// Compute empirical mean
+	float sum = 0.0f;
+	for (size_t i = 0; i < nrows * ncols; i++) {
+		sum += A[i];
+	}
+	float empirical_mean = sum / (nrows * ncols);
+
+	// Compute empirical stddev
+	float sq_sum = 0.0f;
+	for (size_t i = 0; i < nrows * ncols; i++) {
+		float diff = A[i] - empirical_mean;
+		sq_sum += diff * diff;
+	}
+	float empirical_stddev = std::sqrt(sq_sum / (nrows * ncols));
+
+	// Allow some tolerance since it's random
+	EXPECT_NEAR(empirical_mean, mean, 0.2f);
+	EXPECT_NEAR(empirical_stddev, stddev, 0.2f);
+}
 
 // Basic fill: set all elements to a constant
 TEST(Matf32Test, FillMatrix) {

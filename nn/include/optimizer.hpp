@@ -2,17 +2,20 @@
 #define NN_OPTIMIZER_INCLUDED
 
 #include "mat.hpp"
+#include "utils.hpp"
 
 namespace nn::optimizers {
 	using namespace mathops;
-	
-	template <typename T>
-	class Optimizer {
+	using namespace utils;
+
+	class Optimizer : public GenericVTable {
 	public:
+		using GenericVTable::GenericVTable;
+		
 		Optimizer(std::string name, double learning_rate);
 		Optimizer(double learning_rate);
-		Optimizer(std::string name, float learning_rate);
 		Optimizer(float learning_rate);
+		Optimizer(std::string name, float learning_rate);
 		virtual ~Optimizer(void) = 0;
 		
 		Optimizer &set_name(std::string name);
@@ -32,23 +35,27 @@ namespace nn::optimizers {
 		 * @param input          The input that produced the current output (or the relevant activations from the previous layer),
 		 *                       used to compute weight updates in most learning rules.
 		 */
-		virtual void update(Mat<T> &weights, const Mat<T> &signal_update, const Mat<T> &input) = 0;
-		// virtual Mat<T> get_initial_signal_update(void);
+		template <typename T>
+		void update(Mat<T> &weights, const Mat<T> &signal_update, const Mat<T> &input)
+		{
+			get_func<void, Mat<T> &, const Mat<T> &, const Mat<T> &>
+				("update", __FILE__, __LINE__)(weights, signal_update, input);
+		}
 	protected:
 		std::string name_;
 		double learning_rate_;
 	};
 
-	
 	template <typename T>
-	class PerceptronOptimizer : public Optimizer<T> {
+	class PerceptronOptimizer : public Optimizer {
 	public:
-		PerceptronOptimizer(double learning_rate);
-		PerceptronOptimizer(float learning_rate);
-		~PerceptronOptimizer(void) = default;
+		using Optimizer::Optimizer;
 		
-	public:
-		void update(Mat<T> &weights, const Mat<T> &error, const Mat<T> &input) override;
+		PerceptronOptimizer(T learning_rate = 0);
+		~PerceptronOptimizer(void) override = default;
+
+	private:
+		PerceptronOptimizer &register_funcs(void) override;
 	};
 }
 

@@ -1,68 +1,111 @@
 #include <gtest/gtest.h>
+
 #include "../include/layer.hpp"
+#include "../include/optimizer.hpp"
 
 using namespace nn::layers;
+using namespace nn::optimizers;
 
-// Trivial concrete subclass to instantiate Layer
+// ---- Mock Optimizer ----
+
 template <typename T>
-class FooLayer : public Layer<T> {
+class MockOptimizer : public Optimizer {
 public:
-	FooLayer(bool trainable = true, std::size_t in_size = 1, std::size_t out_size = 1)
-		: Layer<T>(trainable, in_size, out_size) {}
+	MockOptimizer(double learning_rate = 0.01)
+		: Optimizer("MockOptimizer", learning_rate) {}
 
-	FooLayer(bool trainable, std::size_t in_size, std::size_t out_size, std::string name)
-		: Layer<T>(trainable, in_size, out_size, std::move(name)) {}
-	FooLayer(bool trainable, Shape input_shape, Shape output_shape, std::string name)
-		: Layer<T>(trainable, input_shape, output_shape, std::move(name)) {}
-	~FooLayer(void) override = default;
-	
+	~MockOptimizer(void) override = default;
 
-	Mat<T> operator()(const Mat<T> &X) override {
-		return X; // trivial
-	}
 
-	Mat<T> derivate(const Mat<T> &x) override {
-		return x; // trivial
-	}
-
-	Layer<T>& build(const Shape &input_shape, const Shape &output_shape) override {
-		this->set_input_shape(input_shape);
-		this->set_output_shape(output_shape);
+	MockOptimizer &register_funcs(void) override
+	{
+		register_func<void, Mat<T> &, const Mat<T> &, const Mat<T> &>
+			("update", [this](Mat<T> &weights, const Mat<T> &signal_update, const Mat<T> &input) -> void {
+				((void) weights);
+				((void) signal_update);
+				((void) input);
+			});
+		
 		return *this;
 	}
 };
 
-// Test trainable flag
+
+// ---- Trivial concrete subclass of Layer for testing ----
+class FooLayer : public Layer {
+public:
+	using Layer::Layer;
+	
+	~FooLayer(void) override {};
+
+	FooLayer &build(const Shape &input_shape, const Shape &output_shape) override
+	{
+		this->set_input_shape(input_shape);
+		this->set_output_shape(output_shape);
+		
+		return *this;
+	}
+
+	FooLayer &build(std::size_t input_size, std::size_t output_size) override
+	{
+		this->set_input_shape(Shape{input_size, 1});
+		this->set_output_shape(Shape{output_size, 1});
+		
+		return *this;
+	}
+
+	FooLayer &build(void) override
+	{
+		return *this;
+	}
+	
+	FooLayer &register_funcs(void) override
+	{
+		// Register trivial functions
+		register_func<Mat<float>, const Mat<float>&>
+			("feedforward", [](const Mat<float>& X) {
+				return X;
+			});
+		register_func<Mat<float>, const Mat<float>&>
+			("derivate", [](const Mat<float>& X) {
+				return X;
+			});
+
+		return *this;
+	}
+};
+
+// ======================================================
+//                  Layer Tests
+// ======================================================
+
 TEST(LayerTest, TrainableFlag) {
-	FooLayer<float> t_layer(true, 3, 2);
+	FooLayer t_layer(3, 2, true);
 	EXPECT_TRUE(t_layer.is_trainable());
 
-	FooLayer<float> f_layer(false, 3, 2);
+	FooLayer f_layer(3, 2, false);
 	EXPECT_FALSE(f_layer.is_trainable());
 }
 
-// Test built flag defaults to false
 TEST(LayerTest, BuiltFlagDefault) {
-	FooLayer<float> layer;
+	FooLayer layer;
 	EXPECT_FALSE(layer.is_built());
 }
 
-// Test input/output shape setters and getters
 TEST(LayerTest, ShapeSetGet) {
-	FooLayer<float> layer;
+	FooLayer layer;
 	Shape input_shape{2, 3};
 	Shape output_shape{4, 5};
 
 	layer.set_input_shape(input_shape);
 	layer.set_output_shape(output_shape);
-
+	
 	EXPECT_EQ(layer.get_input_shape(), input_shape);
 	EXPECT_EQ(layer.get_output_shape(), output_shape);
 }
 
-// Test input/output size setters and getters
 TEST(LayerTest, SizeSetGet) {
-	FooLayer<float> layer;
+	FooLayer layer;
 	layer.set_input_size(7);
 	layer.set_output_size(9);
 
@@ -70,28 +113,25 @@ TEST(LayerTest, SizeSetGet) {
 	EXPECT_EQ(layer.get_output_size(), 9);
 }
 
-// Test build method sets input shape
 TEST(LayerTest, BuildSetsInputShape) {
-	FooLayer<float> layer;
+	FooLayer layer;
 	Shape new_shape{10, 20};
 	layer.build(new_shape, new_shape);
 	EXPECT_EQ(layer.get_input_shape(), new_shape);
 }
 
-
-// Test constructors with name
 TEST(LayerTest, ConstructorsWithName) {
-	FooLayer<float> l1(true, 3, 2, "hidden1");
+	FooLayer l1;
+	l1.set_name("hidden1");
 	EXPECT_EQ(l1.get_name(), "hidden1");
 
-	FooLayer<float> l2(true, Shape{2, 3}, Shape{4, 5}, "output");
+	FooLayer l2(3, 2, true, "output");
 	EXPECT_EQ(l2.get_name(), "output");
 }
 
-// Test setter and getter
 TEST(LayerTest, SetGetName) {
-	FooLayer<float> layer;
-	EXPECT_EQ(layer.get_name(), "Layer"); 
+	FooLayer layer;
+	EXPECT_EQ(layer.get_name(), "Layer");
 
 	layer.set_name("hidden2");
 	EXPECT_EQ(layer.get_name(), "hidden2");
@@ -101,11 +141,105 @@ TEST(LayerTest, SetGetName) {
 	EXPECT_EQ(layer.get_name(), "hidden3");
 }
 
-// Test chaining with set_name
 TEST(LayerTest, ChainingSetName) {
-	FooLayer<float> layer;
-	layer.set_name("first").set_input_size(5).set_output_size(10);
+	FooLayer layer;
+	layer.set_name("first")
+		.set_input_size(5)
+		.set_output_size(10);
+	
 	EXPECT_EQ(layer.get_name(), "first");
 	EXPECT_EQ(layer.get_input_size(), 5);
 	EXPECT_EQ(layer.get_output_size(), 10);
+}
+
+// ======================================================
+//               WeightedLayer Tests
+// ======================================================
+
+class DummyWeighted : public WeightedLayer {
+public:
+	using WeightedLayer::WeightedLayer;
+	
+	~DummyWeighted() override = default;
+
+	DummyWeighted &build(const Shape &input_shape, const Shape &output_shape) override
+	{
+		set_input_shape(input_shape);
+		set_output_shape(output_shape);
+
+		register_funcs();
+		
+		return *this;
+	}
+
+	DummyWeighted &build(std::size_t input_size, std::size_t output_size) override
+	{
+		set_input_shape(Shape{input_size, 1});
+		set_output_shape(Shape{output_size, 1});
+
+		register_funcs();
+		
+		return *this;
+	}
+
+	DummyWeighted &build(void) override
+	{
+		register_funcs();
+		
+		return *this;
+	}
+	
+	
+	DummyWeighted &register_funcs(void) override
+	{
+		// register dummy fit function
+		register_func<void, const Mat<float>&, const Mat<float>&>
+			("fit", [](const Mat<float>&, const Mat<float>&) {
+				
+			});
+
+		return *this;
+	}
+};
+
+TEST(WeightedLayerTest, OptimizerSetGet) {
+	DummyWeighted wl(2, 2);
+	auto opt = std::make_shared<MockOptimizer<float>>(0.1);
+	wl.set_optimizer(opt);
+	EXPECT_EQ(wl.get_optimizer(), opt);
+}
+
+TEST(WeightedLayerTest, FitFunctionCalls) {
+	DummyWeighted wl(2, 2);
+	wl.build();
+	Mat<float> X(2,2), Y(2,2);
+	EXPECT_NO_THROW(wl.fit(X, Y)); // calls registered fit
+}
+
+// ======================================================
+//                Dense Layer Tests
+// ======================================================
+
+TEST(DenseLayerTest, Construction) {
+	Dense<float> d(3, 2);
+	EXPECT_EQ(d.get_input_size(), 3);
+	EXPECT_EQ(d.get_output_size(), 2);
+}
+
+TEST(DenseLayerTest, FeedForwardAndDerivate) {
+	Dense<float> d(2, 2);
+	Mat<float> X = {
+		{1.0f},
+		{1.0f}
+	};
+	
+	d.build();
+	
+	auto out = d(X);           // operator() → feedforward
+	auto grad = d.gradient(X);
+	
+	EXPECT_EQ(out.rows(), 2);
+	EXPECT_EQ(out.cols(), 1);
+	EXPECT_EQ(grad.rows(), 2);
+	EXPECT_EQ(grad.cols(), 1);
 }

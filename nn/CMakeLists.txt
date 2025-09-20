@@ -2,8 +2,12 @@
 
 For compiling this project:
 
-mkdir -p build/ && cd build/ && cmake ../nn/ && make
+mkdir -p nn/build/ && cd nn/build/ && cmake .. && make
 
+For testing this project:
+
+cd nn/build/ && make && ./nn_tests
+cd nn/build/ && make && ./mat-c/mat_tests
 ]]
 
 cmake_minimum_required(VERSION 3.10)
@@ -54,7 +58,6 @@ set(INSTALL_GTEST OFF CACHE BOOL "" FORCE)
 
 FetchContent_MakeAvailable(googletest)
 
-
 set(SOURCE_DIR src)
 set(INCLUDE_DIR include)
 set(TEST_DIR test)
@@ -63,22 +66,22 @@ file(GLOB SOURCES
   "${CMAKE_CURRENT_SOURCE_DIR}/${SOURCE_DIR}/*.cpp"
 )
 
+# Add the library
 add_library(
   nn
   SHARED
   ${SOURCES}
 )
 
-
+# Target the library
 target_include_directories(
   nn
   PUBLIC
   ${CMAKE_CURRENT_SOURCE_DIR}/${INCLUDE_DIR}
 )
 
-# Include the mat library
+# Add the library and link it
 add_subdirectory(mat-c)
-
 target_link_libraries(
   nn
   PRIVATE
@@ -87,11 +90,11 @@ target_link_libraries(
 
 enable_testing()
 
-
 file(GLOB TEST_SOURCES
   "${CMAKE_CURRENT_SOURCE_DIR}/${TEST_DIR}/test_*.cpp"
 )
 
+# Link the executable
 add_executable(
   nn_tests
   ${TEST_SOURCES}

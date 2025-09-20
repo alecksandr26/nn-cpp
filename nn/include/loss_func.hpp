@@ -2,45 +2,41 @@
 #define NN_LOSS_FUNC_INCLUDED
 
 #include <vector>
+#include <memory>
+#include <string>
+
 #include "model.hpp"
 #include "mat.hpp"
-
 
 namespace nn::loss_funcs {
 	using namespace mathops;
 	using namespace models;
 
-	// TODO: Write a few unit tests for the loss function
 	template <typename T>
 	class Loss {
 	public:
 		// Constructors
-		Loss(const std::vector<Mat<T>> &inputs,
-		     const std::vector<Mat<T>> &outputs);
-		Loss(const std::vector<Mat<T>> &inputs,
-		     const std::vector<Mat<T>> &outputs,
-		     std::string name);
+		Loss(std::shared_ptr<std::vector<Mat<T>>> inputs = nullptr,
+		     std::shared_ptr<std::vector<Mat<T>>> outputs = nullptr,
+		     std::string name = "Loss");
 
 		virtual ~Loss(void) = 0;
 
 		// Setters
 		Loss &set_name(std::string name);
-		Loss &set_model(Model<T> &model);
+		Loss &set_model(Model &model);
+		Loss &set_inputs(std::shared_ptr<std::vector<Mat<T>>> inputs);
+		Loss &set_outputs(std::shared_ptr<std::vector<Mat<T>>> outputs);
 
 		// Getters
-		const std::vector<Mat<T>> &get_inputs(void) const;
-		const std::vector<Mat<T>> &get_outputs(void) const;
-		const std::vector<Mat<T>> &get_predictions(void) const; // Last predicted outputs
+		std::shared_ptr<std::vector<Mat<T>>> get_inputs(void) const;
+		std::shared_ptr<std::vector<Mat<T>>> get_outputs(void) const;
+		const std::vector<Mat<T>> &get_predictions(void) const;
 		const std::string &get_name(void) const;
 
 		// Input/Output shapes and sizes
 		const Shape &get_input_shape(void) const;  
-		// Shape of the inputs to the model.
-		// Needed to know the expected input dimensions for the model.
-
-		const Shape &get_output_shape(void) const; 
-		// Shape of the outputs from the model.
-		// Needed to compute the derivative of the loss w.r.t. the model output.
+		const Shape &get_output_shape(void) const;
 
 		// Get last computed loss
 		const Mat<T> &get_last_loss(void) const;
@@ -48,57 +44,42 @@ namespace nn::loss_funcs {
 		// Get normalized version of the last loss
 		T get_normalized_loss(void) const;
 
-		// Evaluate the loss using currently set inputs/outputs
+		// Evaluate the loss
 		virtual Mat<T> operator()(void) = 0;
-
-		// Evaluate the loss on a batch of input-output pairs
 		virtual Mat<T> operator()(const std::vector<std::pair<Mat<T>, Mat<T>>> &batch) = 0;
-		//   ^-- pair.first  = input
-		//   ^-- pair.second = expected output
-
-		// Evaluate the loss on a single input-output pair
 		virtual Mat<T> operator()(const std::pair<Mat<T>, Mat<T>> &example) = 0;
-		//   ^-- example.first  = input
-		//   ^-- example.second = expected output
 
-		// Compute derivative of loss w.r.t. model output for a single example
+		// Compute derivative
 		virtual Mat<T> derivate(const std::pair<Mat<T>, Mat<T>> &example) = 0;
 
 	protected:
-		const std::vector<Mat<T>> &inputs_;        // Stored input matrices
-		const std::vector<Mat<T>> &outputs_;       // Stored expected outputs
-		std::vector<Mat<T>> predictions_;   // Stores predicted outputs after evaluation
-		Model<T> *model_;                   // Pointer to the model to run predictions
-		std::string name_;                  // Name of the loss function
+		std::shared_ptr<std::vector<Mat<T>>> inputs_;
+		std::shared_ptr<std::vector<Mat<T>>> outputs_;
+		std::vector<Mat<T>> predictions_;
+		std::shared_ptr<Model> model_;
+		std::string name_;
 
-		// Shape/size info
-		Shape input_shape_;   // Shape of inputs to the model
-		Shape output_shape_;  // Shape of outputs from the model
-
-		// Stores last computed loss for batch or single example
+		Shape input_shape_;
+		Shape output_shape_;
 		Mat<T> last_loss_;
 	};
-	
-	
-	
+
 	template <typename T>
 	class MeanAbsoluteError : public Loss<T> {
 	public:
-		// Constructors forwarding to base class
-		MeanAbsoluteError(const std::vector<Mat<T>> &inputs,
-				  const std::vector<Mat<T>> &outputs);
+		using Loss<T>::Loss;
+
+		MeanAbsoluteError(std::shared_ptr<std::vector<Mat<T>>> inputs = nullptr,
+				  std::shared_ptr<std::vector<Mat<T>>> outputs = nullptr);
+
 		~MeanAbsoluteError(void) override = default;
-		
-		// Override operators for evaluation
+
 		Mat<T> operator()(void) override;
 		Mat<T> operator()(const std::vector<std::pair<Mat<T>, Mat<T>>> &batch) override;
 		Mat<T> operator()(const std::pair<Mat<T>, Mat<T>> &example) override;
-		
-		// Override derivative computation
+
 		Mat<T> derivate(const std::pair<Mat<T>, Mat<T>> &example) override;
 	};
 }
 
 #endif
-
-

@@ -2,10 +2,5 @@
 
 using namespace nn::models;
 
-template class nn::models::Model<float>;
-template class nn::models::Model<double>;
-
-
-
-
+nn::models::Model::~Model(void) = default;
 
