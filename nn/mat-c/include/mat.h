@@ -60,7 +60,7 @@ extern float Matf32_grand_sum(const float *A, size_t nrows, size_t ncols);
 extern void Matf32_transpose(const float *A, float *B, size_t nrows,
                              size_t ncols);
 
-/* Matf32_equal: Evaluates if A ≈ B within epsilon tolerance */
+/* Matf32_equal: Evaluates if A ~ B within epsilon tolerance */
 extern bool Matf32_equal(const float *A, const float *B, size_t nrows, size_t ncols, float eps);
 
 // TODO: Build the implemenations, tests and don't forget sub and div matrices, sub and div scalar, and grand sum

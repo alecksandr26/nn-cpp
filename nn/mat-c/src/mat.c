@@ -180,7 +180,7 @@ void Matf32_transpose(const float *A, float *B, size_t nrows, size_t ncols)
 
 // TODO: Add a unit test of this
 
-/* Matf32_equal: Evaluates if A ≈ B within epsilon tolerance */
+/* Matf32_equal: Evaluates if A ~ B within epsilon tolerance */
 bool Matf32_equal(const float *A, const float *B, size_t nrows, size_t ncols, float eps)
 {
     assert(A && "A can't be null");

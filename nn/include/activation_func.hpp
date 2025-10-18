@@ -30,6 +30,23 @@ namespace nn::activation_funcs {
 	private:
 		StepFunc &register_funcs(void) override;
 	};
+
+
+	template <typename T>
+	class SigmoidFunc : public ActivationFunc {
+	public:
+		using ActivationFunc::ActivationFunc;
+
+		SigmoidFunc(void);
+		~SigmoidFunc(void) override = default;
+
+		SigmoidFunc &build(const Shape &input_shape, const Shape &output_shape) override;
+		SigmoidFunc &build(std::size_t input_size, std::size_t output_size) override;
+		SigmoidFunc &build(void) override;
+		
+	private:
+		SigmoidFunc &register_funcs(void) override;
+	};
 }
 
 

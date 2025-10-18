@@ -1,6 +1,8 @@
 #include "../include/loss_func.hpp"
+#include <cstddef>
 #include <stdexcept>
 #include <algorithm>
+#include <cmath>
 
 using namespace nn::loss_funcs;
 
@@ -150,13 +152,15 @@ MeanAbsoluteError<T>::MeanAbsoluteError(std::shared_ptr<std::vector<Mat<T>>> inp
 {
 }
 
+
+// TODO: we should refactor these functions since it has a lot of repetate code 
 // Evaluate MAE on all stored inputs/outputs
 template <typename T>
 Mat<T> MeanAbsoluteError<T>::operator()(void)
 {
 	if (this->model_ == nullptr)
 		throw std::runtime_error("Model pointer not set in Loss function.");
-
+	
 	this->predictions_.clear();
 	this->last_loss_.resize(this->output_shape_).fill(static_cast<T>(0.0));
 
@@ -218,15 +222,16 @@ Mat<T> MeanAbsoluteError<T>::operator()(const std::pair<Mat<T>, Mat<T>> &example
 	return this->last_loss_;
 }
 
-// Derivative of MAE
+// gradient of MAE
 template <typename T>
-Mat<T> MeanAbsoluteError<T>::derivate(const std::pair<Mat<T>, Mat<T>> &example)
+Mat<T> MeanAbsoluteError<T>::gradient(const std::pair<Mat<T>, Mat<T>> &example)
 {
-	if (!this->model_) throw std::runtime_error("Model pointer not set in Loss function.");
+	if (!this->model_)
+		throw std::runtime_error("Model pointer not set in Loss function.");
 
 	const auto &[x, y_true] = example;
 	Mat<T> y_pred = (*this->model_)(x);
-
+	
 	Mat<T> grad(this->output_shape_);
 	for (std::size_t r = 0; r < y_pred.rows(); ++r)
 		for (std::size_t c = 0; c < y_pred.cols(); ++c) {
@@ -237,6 +242,178 @@ Mat<T> MeanAbsoluteError<T>::derivate(const std::pair<Mat<T>, Mat<T>> &example)
 	return grad;
 }
 
+
+// jacobian
+template <typename T>
+Mat<T> MeanAbsoluteError<T>::jacobian(const std::pair<Mat<T>, Mat<T>> &example)
+{
+	// This is supposing that, F:  X \in R^{n, 1} -> Y \in R^{n, 1}
+	// Such that its Jacobian should be: J(F) \in R^{n, n}
+	
+	if (!this->model_)
+		throw std::runtime_error("Model pointer not set in Loss function.");
+
+	const auto &[x, y_true] = example;
+	Mat<T> y_pred = (*this->model_)(x);
+	
+	Mat<T> jaco(this->output_shape_.rows, this->input_shape_.rows);
+	jaco.fill(static_cast<T>(0.0));
+	for (std::size_t i = 0; i < this->output_shape_.rows; i++) {
+		T val = y_pred(i, 0) - y_true(i, 0);
+		jaco(i, i) = (val > 0) ? 1 : ((val < 0) ? -1 : 0);
+	}
+	
+	return jaco;
+}
+
+
 // Explicit template instantiation for MAE
 template class nn::loss_funcs::MeanAbsoluteError<float>;
 // template class MeanAbsoluteError<double>
+
+
+// ===================== Cross Entropy IMPLEMENTATION =====================
+
+
+template <typename T>
+CrossEntropy<T>::CrossEntropy(std::shared_ptr<std::vector<Mat<T>>> inputs,
+			      std::shared_ptr<std::vector<Mat<T>>> outputs)
+	: Loss<T>(inputs, outputs, "CrossEntropy")
+{
+}
+
+
+template <typename T>
+Mat<T> CrossEntropy<T>::operator()(void)
+{
+	if (this->model_ == nullptr)
+		throw std::runtime_error("Model pointer not set in Loss function.");
+	this->predictions_.clear();
+	this->last_loss_.resize(this->output_shape_).fill(static_cast<T>(0.0));
+
+	// sum_{i = 1}^n [y_i * log(s(x_i^T * \theta)) + (1 - y_i) * log(1 - s(1 - s(x_i^T * \theta)))]
+	for (std::size_t i = 0; i < this->inputs_->size(); i++) {
+		Mat<T> y_pred = (*this->model_)((*this->inputs_)[i]);
+		this->predictions_.push_back(y_pred);
+
+		// Compute the log
+		Mat<T> term1(y_pred.rows(), 1);
+		Mat<T> term2(y_pred.rows(), 1);
+		
+		for (std::size_t i = 0; i < y_pred.rows(); i++) {
+			term1(i, 0) = std::log(y_pred(i, 0));
+			term2(i, 0) = std::log(1 - y_pred(i, 0));
+		}
+
+		// Create ones 
+		Mat<T> ones = Mat<T>(y_pred.rows(), 1).fill(static_cast<T>(1.0));
+		this->last_loss_ += (*this->outputs_)[i] * term1 + ((*this->outputs_)[i] * (-1) + ones) * term2;
+	}
+
+	return this->last_loss_;
+}
+
+
+
+template <typename T>
+Mat<T> CrossEntropy<T>::operator()(const std::vector<std::pair<Mat<T>, Mat<T>>> &batch)
+{
+	if (this->model_ == nullptr)
+		throw std::runtime_error("Model pointer not set in Loss function.");
+
+	this->predictions_.clear();
+	this->last_loss_.resize(this->output_shape_).fill(static_cast<T>(0.0));
+	for (const auto &ex : batch) {
+		const auto &[x, y_true] = ex;
+		Mat<T> y_pred = (*this->model_)(x);
+		this->predictions_.push_back(y_pred);
+
+		Mat<T> term1(y_pred.rows(), 1);
+		Mat<T> term2(y_pred.rows(), 1);
+		
+		for (std::size_t i = 0; i < y_pred.rows(); i++) {
+			term1(i, 0) = std::log(y_pred(i, 0));
+			term2(i, 0) = std::log(1 - y_pred(i, 0));
+		}
+
+		// Create ones 
+		Mat<T> ones = Mat<T>(y_pred.rows(), 1).fill(static_cast<T>(1.0));
+		this->last_loss_ += y_true * term1 + (y_true * (-1) + ones) * term2;
+	}
+
+	return this->last_loss_;
+}
+
+
+template <typename T>
+Mat<T> CrossEntropy<T>::operator()(const std::pair<Mat<T>, Mat<T>> &example)
+{
+	if (this->model_ == nullptr)
+		throw std::runtime_error("Model pointer not set in Loss function.");
+
+	this->predictions_.clear();
+	
+	const auto &[x, y_true] = example;
+	Mat<T> y_pred = (*this->model_)(x);
+	this->predictions_.push_back(y_pred);
+
+	Mat<T> term1(y_pred.rows(), 1);
+	Mat<T> term2(y_pred.rows(), 1);
+
+	
+	for (std::size_t i = 0; i < y_pred.rows(); i++) {
+		term1(i, 0) = std::log(y_pred(i, 0));
+		term2(i, 0) = std::log(1 - y_pred(i, 0));
+	}
+	
+	// Create ones 
+	Mat<T> ones = Mat<T>(y_pred.rows(), 1).fill(static_cast<T>(1.0));
+	this->last_loss_ = y_true * term1 + (y_true * (-1) + ones) * term2;
+	
+	return this->last_loss_;
+}
+
+
+template <typename T>
+Mat<T> CrossEntropy<T>::gradient(const std::pair<Mat<T>, Mat<T>> &example)
+{
+	/*
+	  L(a) = (y * log(a) + (1 - y) * log(1 - a))
+	  dL/da = (y * 1/a) + (1 - y) * 1/(1 - a)
+	        = (a - y)/(a * ( 1 - a))
+	 */
+	if (!this->model_)
+		throw std::runtime_error("Model pointer not set in Loss function.");
+
+	const auto &[x, y_true] = example;
+	Mat<T> y_pred = (*this->model_)(x);
+	Mat<T> grad(this->output_shape_);
+	for (std::size_t r = 0; r < y_pred.rows(); ++r)
+		for (std::size_t c = 0; c < y_pred.cols(); ++c)
+			grad(r, c) = y_pred(r, c) - y_true(r, c) / (y_pred(r, c) * (1.0 - y_pred(r, c)));
+	return grad;
+}
+
+
+template <typename T>
+Mat<T> CrossEntropy<T>::jacobian(const std::pair<Mat<T>, Mat<T>> &example)
+{
+	// This is supposing that, F:  X \in R^{n, 1} -> Y \in R^{n, 1}
+	// Such that its Jacobian should be: J(F) \in R^{n, n}
+	
+	if (!this->model_)
+		throw std::runtime_error("Model pointer not set in Loss function.");
+
+	const auto &[x, y_true] = example;
+	Mat<T> y_pred = (*this->model_)(x);
+
+	Mat<T> jaco(this->output_shape_.rows, this->input_shape_.rows);
+	jaco.fill(static_cast<T>(0.0));
+	for (std::size_t i = 0; i < this->output_shape_.rows; i++)
+		jaco(i, i) = y_pred(i, 0) - y_true(i, 0) / (y_pred(i, 0) * (1.0 - y_pred(i, 0)));
+	return jaco;
+}
+
+
+template class nn::loss_funcs::CrossEntropy<float>;
+// template class nn::loss_funcs::CrossEntropy<double>;

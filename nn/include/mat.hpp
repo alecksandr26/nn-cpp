@@ -98,7 +98,7 @@ namespace nn::mathops {
 
 		constexpr static double eq_tolerance = 1e-8;
 		inline static bool Mat_equal(const float *A, const float *B, const Shape &shape) {
-			return Matf32_equal(A, B, shape.rows, shape.cols, (float) eq_tolerance);
+			return Matf32_equal(A, B, shape.rows, shape.cols, static_cast<float>(eq_tolerance));
 		}
 			
 	};
