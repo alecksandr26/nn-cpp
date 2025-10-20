@@ -6,8 +6,8 @@ mkdir -p nn/build/ && cd nn/build/ && cmake .. && make
 
 For testing this project:
 
-cd nn/build/ && make && ./nn_tests
-cd nn/build/ && make && ./mat-c/mat_tests
+mkdir -p nn/build/ && cd nn/build/ && cmake .. && make && ./nn_tests
+mkdir -p nn/build/ && cd nn/build/ && cmake .. && make && ./mat-c/mat_tests
 ]]
 
 cmake_minimum_required(VERSION 3.10)

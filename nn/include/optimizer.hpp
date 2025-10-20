@@ -51,11 +51,25 @@ namespace nn::optimizers {
 	public:
 		using Optimizer::Optimizer;
 		
-		PerceptronOptimizer(T learning_rate = 0);
+		PerceptronOptimizer(T learning_rate = 0.01);
 		~PerceptronOptimizer(void) override = default;
 
 	private:
 		PerceptronOptimizer &register_funcs(void) override;
+	};
+
+
+	// TODO: Batch Gradient descent we need a function called
+	// fit probably not sure ?
+	template <typename T>
+	class GradientDescentOptimizer : public Optimizer {
+	public:
+		using Optimizer::Optimizer;
+
+		GradientDescentOptimizer(T learning_rate = 0.01);
+		~GradientDescentOptimizer(void) override = default;
+	private:
+		GradientDescentOptimizer &register_funcs(void) override;
 	};
 }
 

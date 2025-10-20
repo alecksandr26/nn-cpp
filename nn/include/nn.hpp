@@ -61,6 +61,29 @@ namespace nn::models {
 		
 		std::unique_ptr<Dense<T>> dense_;
 	};
+
+	template <typename T>
+	class Adeline : public WeightedModel<T> {
+	public:
+		using WeightedModel<T>::WeightedModel;
+		
+		Adeline(const Shape &input_shape, const Shape &output_shape, std::shared_ptr<RandInitializer> rand_init = nullptr);
+		Adeline(const Shape &input_shape, std::shared_ptr<RandInitializer> rand_init = nullptr);
+		Adeline(std::size_t input_size, std::size_t output_size, std::shared_ptr<RandInitializer> rand_init = nullptr);
+		Adeline(std::size_t input_size, std::shared_ptr<RandInitializer> rand_init = nullptr);
+		~Adeline(void) = default;
+		
+		Mat<T> &get_weights(void) const;
+		Mat<T> &get_bias(void) const;
+		
+		Adeline &build(const Shape &input_shape, const Shape &output_shape) override;
+		Adeline &build(std::size_t input_size, std::size_t output_size) override;
+		Adeline &build(void) override;
+		Adeline &fit(const std::shared_ptr<std::vector<Mat<T>>> X_train, const std::shared_ptr<std::vector<Mat<T>>> Y_train, std::size_t nepochs = 100, std::size_t batch_size = 1) override;
+	private:
+		Adeline &register_funcs(void) override;
+		std::unique_ptr<Dense<T>> dense_;
+	};
 }
 
 
