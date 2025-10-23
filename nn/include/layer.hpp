@@ -115,7 +115,7 @@ namespace nn::layers {
 		Mat<T> &get_weights(void) const;
 		Mat<T> &get_bias(void) const;
 		bool has_activation_func(void) const;
-		Layer get_activation_func(void) const;
+		std::shared_ptr<Layer> get_activation_func(void) const;
 		
 		Dense &build(const Shape &input_shape, const Shape &output_shape) override;
 		Dense &build(std::size_t input_size, std::size_t output_size) override;

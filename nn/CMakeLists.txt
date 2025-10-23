@@ -8,6 +8,9 @@ For testing this project:
 
 mkdir -p nn/build/ && cd nn/build/ && cmake .. && make && ./nn_tests
 mkdir -p nn/build/ && cd nn/build/ && cmake .. && make && ./mat-c/mat_tests
+
+For filtering tests:
+mkdir -p nn/build/ && cd nn/build/ && cmake .. && make && ./nn_tests --gtest_filter=footest
 ]]
 
 cmake_minimum_required(VERSION 3.10)

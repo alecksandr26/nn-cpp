@@ -167,7 +167,7 @@ TEST_F(MeanAbsoluteErrorTest, EvaluateSingleExample) {
 	// With model output [1.0, 1.5] and target [0.5, 1.5]:
 	// First element: |1.0 - 0.5| = 0.5
 	// Second element: |1.5 - 1.5| = 0.0
-	EXPECT_NEAR(loss(0, 0), 0.5f, 1e-6f);
+	EXPECT_NEAR(loss(0, 0), 0.25f, 1e-6f);
 	EXPECT_NEAR(loss(1, 0), 0.0f, 1e-6f);
 }
 

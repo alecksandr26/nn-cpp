@@ -185,6 +185,19 @@ Mat<T> &nn::layers::Dense<T>::get_bias(void) const
 	return *bias_;
 }
 
+
+template <typename T>
+bool nn::layers::Dense<T>::has_activation_func(void) const
+{
+	return this->activation_func_ != nullptr;
+}
+
+template <typename T>
+std::shared_ptr<Layer> nn::layers::Dense<T>::get_activation_func(void) const
+{
+	return activation_func_;
+}
+
 template <typename T>
 Dense<T> &nn::layers::Dense<T>::build(const Shape &input_shape, const Shape &output_shape)
 {
@@ -318,7 +331,7 @@ Dense<T> &nn::layers::Dense<T>::register_funcs(void)
 	register_func<void, const Mat<T> &, const Mat<T> &>
 		("fit", [this](const Mat<T> &signal_update, const Mat<T> &input) -> void {
 			optimizer_.get()->update(*weights_, signal_update, input);
-			optimizer_.get()->update(*bias_, signal_update, Mat<T>(bias_->get_shape()).fill(static_cast<T>(1.0f)));
+			optimizer_.get()->update(*bias_, signal_update, Mat<T>(1, 1).fill(static_cast<T>(1.0f)));
 		});
 	
 	return *this;

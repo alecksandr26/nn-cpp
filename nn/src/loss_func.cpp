@@ -199,7 +199,8 @@ Mat<T> MeanAbsoluteError<T>::operator()(const std::vector<std::pair<Mat<T>, Mat<
 				this->last_loss_(r, c) += std::abs(diff(r, c));
 	}
 
-	return this->last_loss_ / static_cast<T>(batch.size());
+	this->last_loss_ /= static_cast<T>(this->inputs_->size());
+	return this->last_loss_;
 }
 
 // Evaluate MAE on a single example
@@ -219,6 +220,7 @@ Mat<T> MeanAbsoluteError<T>::operator()(const std::pair<Mat<T>, Mat<T>> &example
 		for (std::size_t c = 0; c < y_pred.cols(); ++c)
 			this->last_loss_(r, c) = std::abs(y_pred(r, c) - y_true(r, c));
 
+	this->last_loss_ /= static_cast<T>(this->inputs_->size());
 	return this->last_loss_;
 }
 
@@ -291,7 +293,7 @@ Mat<T> CrossEntropy<T>::operator()(void)
 	this->predictions_.clear();
 	this->last_loss_.resize(this->output_shape_).fill(static_cast<T>(0.0));
 
-	// sum_{i = 1}^n [y_i * log(s(x_i^T * \theta)) + (1 - y_i) * log(1 - s(1 - s(x_i^T * \theta)))]
+	// sum_{i = 1}^n - [y_i * log(s(x_i^T * \theta)) + (1 - y_i) * log(1 - s(1 - s(x_i^T * \theta)))]
 	for (std::size_t i = 0; i < this->inputs_->size(); i++) {
 		Mat<T> y_pred = (*this->model_)((*this->inputs_)[i]);
 		this->predictions_.push_back(y_pred);
@@ -301,13 +303,13 @@ Mat<T> CrossEntropy<T>::operator()(void)
 		Mat<T> term2(y_pred.rows(), 1);
 		
 		for (std::size_t i = 0; i < y_pred.rows(); i++) {
-			term1(i, 0) = std::log(y_pred(i, 0));
-			term2(i, 0) = std::log(1 - y_pred(i, 0));
+			term1(i, 0) = std::log(y_pred(i, 0) + 1e-8);
+			term2(i, 0) = std::log(1 - y_pred(i, 0) + 1e-8);
 		}
 
 		// Create ones 
 		Mat<T> ones = Mat<T>(y_pred.rows(), 1).fill(static_cast<T>(1.0));
-		this->last_loss_ += (*this->outputs_)[i] * term1 + ((*this->outputs_)[i] * (-1) + ones) * term2;
+		this->last_loss_ += ((*this->outputs_)[i] * term1 + ((*this->outputs_)[i] * (-1) + ones) * term2) * (-1);
 	}
 
 	return this->last_loss_;
@@ -332,13 +334,13 @@ Mat<T> CrossEntropy<T>::operator()(const std::vector<std::pair<Mat<T>, Mat<T>>> 
 		Mat<T> term2(y_pred.rows(), 1);
 		
 		for (std::size_t i = 0; i < y_pred.rows(); i++) {
-			term1(i, 0) = std::log(y_pred(i, 0));
-			term2(i, 0) = std::log(1 - y_pred(i, 0));
+			term1(i, 0) = std::log(y_pred(i, 0) + 1e-8);
+			term2(i, 0) = std::log(1 - y_pred(i, 0) + 1e-8);
 		}
 
 		// Create ones 
 		Mat<T> ones = Mat<T>(y_pred.rows(), 1).fill(static_cast<T>(1.0));
-		this->last_loss_ += y_true * term1 + (y_true * (-1) + ones) * term2;
+		this->last_loss_ += (y_true * term1 + (y_true * (-1) + ones) * term2) * (-1);
 	}
 
 	return this->last_loss_;
@@ -362,13 +364,13 @@ Mat<T> CrossEntropy<T>::operator()(const std::pair<Mat<T>, Mat<T>> &example)
 
 	
 	for (std::size_t i = 0; i < y_pred.rows(); i++) {
-		term1(i, 0) = std::log(y_pred(i, 0));
-		term2(i, 0) = std::log(1 - y_pred(i, 0));
+		term1(i, 0) = std::log(y_pred(i, 0) + 1e-8);
+		term2(i, 0) = std::log(1 - y_pred(i, 0) + 1e-8);
 	}
 	
 	// Create ones 
 	Mat<T> ones = Mat<T>(y_pred.rows(), 1).fill(static_cast<T>(1.0));
-	this->last_loss_ = y_true * term1 + (y_true * (-1) + ones) * term2;
+	this->last_loss_ = (y_true * term1 + (y_true * (-1) + ones) * term2) * (-1);
 	
 	return this->last_loss_;
 }
@@ -378,9 +380,9 @@ template <typename T>
 Mat<T> CrossEntropy<T>::gradient(const std::pair<Mat<T>, Mat<T>> &example)
 {
 	/*
-	  L(a) = (y * log(a) + (1 - y) * log(1 - a))
-	  dL/da = (y * 1/a) + (1 - y) * 1/(1 - a)
-	        = (a - y)/(a * ( 1 - a))
+	  L(a) = - (y * log(a) + (1 - y) * log(1 - a))
+	  dL/da = - (y * 1/a) + (1 - y) * 1/(1 - a)
+	        = - (a - y)/(a * ( 1 - a))
 	 */
 	if (!this->model_)
 		throw std::runtime_error("Model pointer not set in Loss function.");
@@ -390,7 +392,7 @@ Mat<T> CrossEntropy<T>::gradient(const std::pair<Mat<T>, Mat<T>> &example)
 	Mat<T> grad(this->output_shape_);
 	for (std::size_t r = 0; r < y_pred.rows(); ++r)
 		for (std::size_t c = 0; c < y_pred.cols(); ++c)
-			grad(r, c) = y_pred(r, c) - y_true(r, c) / (y_pred(r, c) * (1.0 - y_pred(r, c)));
+			grad(r, c) = - (y_true(r, c) / (y_pred(r, c) + 1e-8)) + ((1 - y_true(r, c)) / (1 - y_pred(r, c) + 1e-8));
 	return grad;
 }
 
@@ -410,10 +412,135 @@ Mat<T> CrossEntropy<T>::jacobian(const std::pair<Mat<T>, Mat<T>> &example)
 	Mat<T> jaco(this->output_shape_.rows, this->input_shape_.rows);
 	jaco.fill(static_cast<T>(0.0));
 	for (std::size_t i = 0; i < this->output_shape_.rows; i++)
-		jaco(i, i) = y_pred(i, 0) - y_true(i, 0) / (y_pred(i, 0) * (1.0 - y_pred(i, 0)));
+		jaco(i, i) = - (y_true(i, 0) / (y_pred(i, 0) + 1e-8)) + ((1 - y_true(i, 0)) / (1 - y_pred(i, 0) + 1e-8));
 	return jaco;
 }
 
 
 template class nn::loss_funcs::CrossEntropy<float>;
 // template class nn::loss_funcs::CrossEntropy<double>;
+
+
+// ===================== MEAN SQUARED ERROR IMPLEMENTATION =====================
+
+template <typename T>
+MeanSquaredError<T>::MeanSquaredError(std::shared_ptr<std::vector<Mat<T>>> inputs,
+                                      std::shared_ptr<std::vector<Mat<T>>> outputs)
+    : Loss<T>(inputs, outputs, "MeanSquaredError")
+{
+}
+
+// Evaluate MSE on all stored inputs/outputs
+template <typename T>
+Mat<T> MeanSquaredError<T>::operator()(void)
+{
+    if (!this->model_)
+        throw std::runtime_error("Model pointer not set in Loss function.");
+
+    this->predictions_.clear();
+    this->last_loss_.resize(this->output_shape_).fill(static_cast<T>(0.0));
+
+    for (std::size_t i = 0; i < this->inputs_->size(); ++i) {
+        Mat<T> y_pred = (*this->model_)((*this->inputs_)[i]);
+        this->predictions_.push_back(y_pred);
+
+        Mat<T> diff = y_pred - (*this->outputs_)[i];
+        for (std::size_t r = 0; r < y_pred.rows(); ++r)
+            for (std::size_t c = 0; c < y_pred.cols(); ++c)
+                this->last_loss_(r, c) += diff(r, c) * diff(r, c);
+    }
+
+    this->last_loss_ /= static_cast<T>(this->inputs_->size());
+    return this->last_loss_;
+}
+
+// Evaluate MSE on a batch
+template <typename T>
+Mat<T> MeanSquaredError<T>::operator()(const std::vector<std::pair<Mat<T>, Mat<T>>> &batch)
+{
+    if (!this->model_)
+        throw std::runtime_error("Model pointer not set in Loss function.");
+
+    this->predictions_.clear();
+    this->last_loss_.resize(this->output_shape_).fill(static_cast<T>(0.0));
+
+    for (const auto &ex : batch) {
+        const auto &[x, y_true] = ex;
+        Mat<T> y_pred = (*this->model_)(x);
+        this->predictions_.push_back(y_pred);
+
+        Mat<T> diff = y_pred - y_true;
+        for (std::size_t r = 0; r < y_pred.rows(); ++r)
+            for (std::size_t c = 0; c < y_pred.cols(); ++c)
+                this->last_loss_(r, c) += diff(r, c) * diff(r, c);
+    }
+
+    this->last_loss_ /= static_cast<T>(batch.size());
+    return this->last_loss_;
+}
+
+// Evaluate MSE on a single example
+template <typename T>
+Mat<T> MeanSquaredError<T>::operator()(const std::pair<Mat<T>, Mat<T>> &example)
+{
+    if (!this->model_)
+        throw std::runtime_error("Model pointer not set in Loss function.");
+
+    const auto &[x, y_true] = example;
+    Mat<T> y_pred = (*this->model_)(x);
+
+    this->predictions_.clear();
+    this->predictions_.push_back(y_pred);
+
+    this->last_loss_.resize(this->output_shape_).fill(static_cast<T>(0.0));
+    for (std::size_t r = 0; r < y_pred.rows(); ++r)
+        for (std::size_t c = 0; c < y_pred.cols(); ++c) {
+            T diff = y_pred(r, c) - y_true(r, c);
+            this->last_loss_(r, c) = diff * diff;
+        }
+
+    this->last_loss_ /= static_cast<T>(this->inputs_->size());
+    return this->last_loss_;
+}
+
+// Gradient of MSE
+template <typename T>
+Mat<T> MeanSquaredError<T>::gradient(const std::pair<Mat<T>, Mat<T>> &example)
+{
+    if (!this->model_)
+        throw std::runtime_error("Model pointer not set in Loss function.");
+
+    const auto &[x, y_true] = example;
+    Mat<T> y_pred = (*this->model_)(x);
+
+    Mat<T> grad(this->output_shape_);
+    for (std::size_t r = 0; r < y_pred.rows(); ++r)
+        for (std::size_t c = 0; c < y_pred.cols(); ++c)
+            grad(r, c) = 2 * (y_pred(r, c) - y_true(r, c));
+
+    return grad;
+}
+
+// Jacobian of MSE (diagonal)
+template <typename T>
+Mat<T> MeanSquaredError<T>::jacobian(const std::pair<Mat<T>, Mat<T>> &example)
+{
+    if (!this->model_)
+        throw std::runtime_error("Model pointer not set in Loss function.");
+
+    const auto &[x, y_true] = example;
+    Mat<T> y_pred = (*this->model_)(x);
+
+    Mat<T> jaco(this->output_shape_.rows, this->input_shape_.rows);
+    jaco.fill(static_cast<T>(0.0));
+
+    for (std::size_t i = 0; i < this->output_shape_.rows; ++i)
+        jaco(i, i) = 2 * (y_pred(i, 0) - y_true(i, 0));
+
+    return jaco;
+}
+
+// Explicit template instantiation for MSE
+template class nn::loss_funcs::MeanSquaredError<float>;
+// template class nn::loss_funcs::MeanSquaredError<double>
+

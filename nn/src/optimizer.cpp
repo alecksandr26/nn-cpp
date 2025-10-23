@@ -1,4 +1,8 @@
+// TODO: Lets create  a better optimizer that uses the actual model, to fit the
+// data based in the model
+
 #include "../include/optimizer.hpp"
+#include <iostream>
 
 using namespace nn::optimizers;
 
@@ -65,7 +69,7 @@ PerceptronOptimizer<T> &nn::optimizers::PerceptronOptimizer<T>::register_funcs(v
 	register_func<void, Mat<T> &, const Mat<T> &, const Mat<T> &>
 		("update", [this](Mat<T> &weights, const Mat<T> &error, const Mat<T> &input) -> void {
 			// error = e = d - y
-
+			
 			// weights += weights
 			// Since the error has a shape (n, 1)
 			for (std::size_t i = 0; i < weights.rows(); i++) {
@@ -94,23 +98,18 @@ GradientDescentOptimizer<T> &nn::optimizers::GradientDescentOptimizer<T>::regist
 {
 	register_func<void, Mat<T> &, const Mat<T> &, const Mat<T> &>
 		("update", [this](Mat<T> &weights, const Mat<T> &grad, const Mat<T> &input) -> void {
-			// Here is the gradient of the backpropagation
-			// grad = g = dL/dW = dL/dY * dY/dZ * dZ/dW
-			// where: L = is the loss function
-			//        Y = f(Z) = is the activation function
-			//        Z = W * X
-			// and the dL/dW \in R^{m, n}
-			// where m is the output and n is the size of the vector of the input
-			// w_{k + 1} = w_{k} + l * dL/dW
-			((void) input);
+			// Here we recieve the grad
+			// grad = dL/dZ = dL/dA_{l + 1} * dA/Z
+			// where dL/dA_{l + 1} should be derivate from the above layers
+			// dL/dW = dL/dZ * dZ/dW
+			// here dZ/dW = X^T
+			// for dL/dB = dL/dZ, since d(W . X + B)/dB = 1.0
 
-			// --- Validation section ---
-			// 1. Shape check
-			if (weights.get_shape() != grad.get_shape()) {
-				throw std::invalid_argument("[update] Shape mismatch: weights(" + std::to_string(weights.rows()) + "x" + std::to_string(weights.cols()) + ") vs grad(" + std::to_string(grad.rows()) + "x" + std::to_string(grad.cols()) + ")");
+			// w_{k + 1} = w_{k} - l * dL/dW
+			for (std::size_t i = 0; i < weights.rows(); i++) {
+				Mat<T> &row = weights.get_row(i);
+				row -= input.transpose_copy() * (static_cast<T>(learning_rate_) * grad(i, 0)); // Element wise add + scalar mul
 			}
-			
-			weights += grad * this->learning_rate_;
 		});
 	
 	return *this;

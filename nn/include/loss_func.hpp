@@ -100,6 +100,25 @@ namespace nn::loss_funcs {
 		Mat<T> gradient(const std::pair<Mat<T>, Mat<T>> &example) override;
 		Mat<T> jacobian(const std::pair<Mat<T>, Mat<T>> &example) override;
 	};
+
+
+	template <typename T>
+	class MeanSquaredError : public Loss<T> {
+	public:
+		using Loss<T>::Loss;
+		
+		MeanSquaredError(std::shared_ptr<std::vector<Mat<T>>> inputs = nullptr,
+			     std::shared_ptr<std::vector<Mat<T>>> outputs = nullptr);
+		~MeanSquaredError(void) override = default;
+
+		Mat<T> operator()(void) override;
+		Mat<T> operator()(const std::vector<std::pair<Mat<T>, Mat<T>>> &batch) override;
+		Mat<T> operator()(const std::pair<Mat<T>, Mat<T>> &example) override;
+
+		Mat<T> gradient(const std::pair<Mat<T>, Mat<T>> &example) override;
+		Mat<T> jacobian(const std::pair<Mat<T>, Mat<T>> &example) override;
+	};
+	
 }
 
 #endif

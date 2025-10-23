@@ -396,11 +396,17 @@ Adeline<T> &Adeline<T>::fit(const std::shared_ptr<std::vector<Mat<T>>> X_train, 
 		std::size_t n = X_train->size();
 		for (std::size_t i = 0; i < n; i++) {
 			// Compute the gradient,
-			// grad = g = dL/dW = dL/dY * dY/dZ * dZ/dW
-			Mat<T> Y_pred = (*dense_)((*X_train)[i]);
-			Mat<T> grad_L = (*this->get_loss())({(*Y_train)[i], (*X_train)[i]});
+			Mat<T> Z = this->dense_->get_weights().dot((*X_train)[i]) + this->dense_->get_bias();
+			// dY/dZ = Y * (1 - Y), since Y = s(Z), where s(Z) = 1 / (1 - e^{- Z})
+			// grad_Y_Z in R^{m, 1}
+			Mat<T> grad_Y_Z = this->dense_->get_activation_func()->gradient(Z);
+			// dL/dY = (Y - T) / (Y * (1 - Y)), where T is the true label
+			// grad_L_Y in R^{m, 1}
+			Mat<T> grad_L_Y = this->get_loss()->gradient({(*X_train)[i], (*Y_train)[i]});
 			
-			dense_->fit();
+			// Element-Wise product
+			Mat<T> grad_L_Z = grad_L_Y * grad_Y_Z;
+			this->dense_->fit(grad_L_Z, (*X_train)[i]);
 		}
 	}
 	
