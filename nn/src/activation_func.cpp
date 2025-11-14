@@ -135,7 +135,8 @@ SigmoidFunc<T> &nn::activation_funcs::SigmoidFunc<T>::register_funcs(void)
 			Mat<T> C(X.get_shape());
 			for (std::size_t i = 0; i < X.rows(); i++) {
 				for (std::size_t j = 0; j < X.cols(); j++) {
-					C(i, j) = 1.0 / (1.0 + std::exp(- X(i, j)));
+					// C(i, j) = 1.0 / (1.0 + std::exp(- X(i, j) + 1e-8));
+					C(i, j) = 1.0 / (1.0 + std::exp(-X(i, j))) + 1e-8;
 				}
 			}
 			
@@ -159,8 +160,8 @@ SigmoidFunc<T> &nn::activation_funcs::SigmoidFunc<T>::register_funcs(void)
 			Mat<T> C(X.rows(), X.rows());
 			C.fill(0.0f);
 			for (std::size_t i = 0; i < C.rows(); i++)
-				C(i, i) = (1.0 / (1.0 + std::exp(- X(i, 0))))
-					* (1.0 - (1.0 / (1.0 + std::exp(- X(i, 0)))));
+				C(i, i) = (1.0 / (1.0 + std::exp(- X(i, 0) + 1e-8)))
+					* (1.0 - (1.0 / (1.0 + std::exp(- X(i, 0) + 1e-8))));
 			return C;
 		});
 	
@@ -171,4 +172,164 @@ SigmoidFunc<T> &nn::activation_funcs::SigmoidFunc<T>::register_funcs(void)
 template class nn::activation_funcs::SigmoidFunc<float>;
 // template class nn::activation_funcs::SigmoidFunc<double>;
 
+
+
+template <typename T>
+nn::activation_funcs::TanhFunc<T>::TanhFunc(void)
+	: ActivationFunc("TanhFunc")
+{
+}
+
+
+template <typename T>
+TanhFunc<T> &nn::activation_funcs::TanhFunc<T>::build(const Shape &input_shape, const Shape &output_shape)
+{
+	((void) input_shape);
+	((void) output_shape);
+
+	register_funcs();
+	return *this;
+}
+
+
+template <typename T>
+TanhFunc<T> &nn::activation_funcs::TanhFunc<T>::build(std::size_t input_size, std::size_t output_size)
+{
+	((void) input_size);
+	((void) output_size);
+
+	register_funcs();
+	return *this;
+}
+
+
+template <typename T>
+TanhFunc<T> &nn::activation_funcs::TanhFunc<T>::build(void)
+{
+	register_funcs();
+	return *this;
+}
+
+
+template <typename T>
+TanhFunc<T> &nn::activation_funcs::TanhFunc<T>::register_funcs(void)
+{
+	register_func<Mat<T>, const Mat<T>&>("feedforward", [this](const Mat<T> &X) -> Mat<T> {
+		Mat<T> C(X.get_shape());
+		for (std::size_t i = 0; i < X.rows(); i++) {
+			for (std::size_t j = 0; j < X.cols(); j++) {
+				C(i, j) = std::tanh(X(i, j));
+			}
+		}
+		return C;
+	});
+
+	register_func<Mat<T>, const Mat<T>&>("gradient", [this](const Mat<T> &X) -> Mat<T> {
+		// d/dx tanh(x) = 1 - tanh^2(x)
+		Mat<T> C = (*this)(X); // feedforward(X)
+		for (std::size_t i = 0; i < C.rows(); i++) {
+			for (std::size_t j = 0; j < C.cols(); j++) {
+				C(i, j) = 1.0 - C(i, j) * C(i, j);
+			}
+		}
+		return C;
+	});
+
+	register_func<Mat<T>, const Mat<T>&>("jacobian", [this](const Mat<T> &X) -> Mat<T> {
+		// Jacobian of tanh(X): diagonal with entries (1 - tanh^2(x_i))
+		Mat<T> C(X.rows(), X.rows());
+		C.fill(0.0f);
+		for (std::size_t i = 0; i < C.rows(); i++) {
+			T val = std::tanh(X(i, 0));
+			C(i, i) = 1.0 - val * val;
+		}
+		return C;
+	});
+
+	return *this;
+}
+
+// Explicit instantiation
+template class nn::activation_funcs::TanhFunc<float>;
+// template class nn::activation_funcs::TanhFunc<double>;
+
+
+template <typename T>
+nn::activation_funcs::ReluFunc<T>::ReluFunc(void)
+	: ActivationFunc("ReluFunc")
+{
+}
+
+
+template <typename T>
+ReluFunc<T> &nn::activation_funcs::ReluFunc<T>::build(const Shape &input_shape, const Shape &output_shape)
+{
+	((void) input_shape);
+	((void) output_shape);
+
+	register_funcs();
+	return *this;
+}
+
+
+template <typename T>
+ReluFunc<T> &nn::activation_funcs::ReluFunc<T>::build(std::size_t input_size, std::size_t output_size)
+{
+	((void) input_size);
+	((void) output_size);
+
+	register_funcs();
+	return *this;
+}
+
+
+template <typename T>
+ReluFunc<T> &nn::activation_funcs::ReluFunc<T>::build(void)
+{
+	register_funcs();
+	return *this;
+}
+
+
+template <typename T>
+ReluFunc<T> &nn::activation_funcs::ReluFunc<T>::register_funcs(void)
+{
+	register_func<Mat<T>, const Mat<T>&>("feedforward", [this](const Mat<T> &X) -> Mat<T> {
+		// ReLU(x) = max(0, x)
+		Mat<T> C(X.get_shape());
+		for (std::size_t i = 0; i < X.rows(); i++) {
+			for (std::size_t j = 0; j < X.cols(); j++) {
+				C(i, j) = std::max(static_cast<T>(0), X(i, j));
+			}
+		}
+		return C;
+	});
+
+	register_func<Mat<T>, const Mat<T>&>("gradient", [this](const Mat<T> &X) -> Mat<T> {
+		// d/dx ReLU(x) = 1 if x > 0 else 0
+		Mat<T> C(X.get_shape());
+		for (std::size_t i = 0; i < X.rows(); i++) {
+			for (std::size_t j = 0; j < X.cols(); j++) {
+				C(i, j) = X(i, j) > 0 ? static_cast<T>(1) : static_cast<T>(0);
+			}
+		}
+		return C;
+	});
+
+	register_func<Mat<T>, const Mat<T>&>("jacobian", [this](const Mat<T> &X) -> Mat<T> {
+		// ReLU Jacobian is diagonal: 1 if x_i > 0, else 0
+		Mat<T> C(X.rows(), X.rows());
+		C.fill(static_cast<T>(0));
+		for (std::size_t i = 0; i < C.rows(); i++) {
+			C(i, i) = X(i, 0) > 0 ? static_cast<T>(1) : static_cast<T>(0);
+		}
+		return C;
+	});
+
+	return *this;
+}
+
+// Explicit instantiation
+template class nn::activation_funcs::ReluFunc<float>;
+// template class nn::activation_funcs::ReluFunc<double>;
 

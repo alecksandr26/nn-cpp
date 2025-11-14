@@ -58,8 +58,9 @@ private:
 class MeanAbsoluteErrorTest : public ::testing::Test {
 protected:
 	void SetUp() override {
-		// build the model
-		mock_model.build();
+		// Create the model as shared_ptr
+		mock_model = std::make_shared<MockModel>();
+		mock_model->build();
         
 		// Create sample data
 		inputs = std::make_shared<std::vector<Mat<float>>>();
@@ -95,7 +96,7 @@ protected:
 	std::shared_ptr<std::vector<Mat<float>>> inputs;
 	std::shared_ptr<std::vector<Mat<float>>> outputs;
 	std::unique_ptr<MeanAbsoluteError<float>> mae;
-	MockModel mock_model;
+	std::shared_ptr<MockModel> mock_model;  // ✅ Changed to shared_ptr
 };
 
 // Test MAE construction and basic properties
@@ -149,7 +150,7 @@ TEST_F(MeanAbsoluteErrorTest, EvaluateSingleExample) {
 	Mat<float> model_output(2, 1);
 	model_output(0, 0) = 1.0f;  // Prediction for first element
 	model_output(1, 0) = 1.5f;  // Prediction for second element
-	mock_model.set_output(model_output);
+	mock_model->set_output(model_output);  // ✅ Use -> instead of .
     
 	Mat<float> input(2, 1);
 	input(0, 0) = 1.0f;
@@ -177,7 +178,7 @@ TEST_F(MeanAbsoluteErrorTest, GradientComputation) {
 	Mat<float> model_output(2, 1);
 	model_output(0, 0) = 1.0f;  // > target (0.5) -> gradient = 1
 	model_output(1, 0) = 1.5f;  // = target (1.5) -> gradient = 0  
-	mock_model.set_output(model_output);
+	mock_model->set_output(model_output);  // ✅ Use -> instead of .
     
 	Mat<float> input(2, 1);
 	input(0, 0) = 1.0f;
@@ -205,7 +206,7 @@ TEST_F(MeanAbsoluteErrorTest, JacobianComputation) {
 	Mat<float> model_output(2, 1);
 	model_output(0, 0) = 1.0f;  // > target (0.5) -> jacobian diagonal = 1
 	model_output(1, 0) = 1.5f;  // = target (1.5) -> jacobian diagonal = 0
-	mock_model.set_output(model_output);
+	mock_model->set_output(model_output);  // ✅ Use -> instead of .
     
 	Mat<float> input(2, 1);
 	input(0, 0) = 1.0f;
@@ -232,8 +233,9 @@ TEST_F(MeanAbsoluteErrorTest, JacobianComputation) {
 class CrossEntropyTest : public ::testing::Test {
 protected:
 	void SetUp() override {
-		// Build the model
-		mock_model.build();
+		// Create the model as shared_ptr
+		mock_model = std::make_shared<MockModel>();
+		mock_model->build();
         
 		// Create sample data for classification
 		inputs = std::make_shared<std::vector<Mat<float>>>();
@@ -265,7 +267,7 @@ protected:
 	std::shared_ptr<std::vector<Mat<float>>> inputs;
 	std::shared_ptr<std::vector<Mat<float>>> outputs;
 	std::unique_ptr<CrossEntropy<float>> cross_entropy;
-	MockModel mock_model;
+	std::shared_ptr<MockModel> mock_model;  // ✅ Changed to shared_ptr
 };
 
 // Test CrossEntropy construction and basic properties

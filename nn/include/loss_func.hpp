@@ -24,7 +24,7 @@ namespace nn::loss_funcs {
 
 		// Setters
 		Loss &set_name(std::string name);
-		Loss &set_model(Model &model);
+		Loss &set_model(std::shared_ptr<Model> model);
 		Loss &set_inputs(std::shared_ptr<std::vector<Mat<T>>> inputs);
 		Loss &set_outputs(std::shared_ptr<std::vector<Mat<T>>> outputs);
 
@@ -53,11 +53,14 @@ namespace nn::loss_funcs {
 		virtual Mat<T> gradient(const std::pair<Mat<T>, Mat<T>> &example) = 0;
 		virtual Mat<T> jacobian(const std::pair<Mat<T>, Mat<T>> &example) = 0;
 
+		// To run the gradient to  all the setted batch
+		Mat<T> gradient(void);
+
 	protected:
 		std::shared_ptr<std::vector<Mat<T>>> inputs_;
 		std::shared_ptr<std::vector<Mat<T>>> outputs_;
 		std::vector<Mat<T>> predictions_;
-		std::shared_ptr<Model> model_;
+		std::weak_ptr<Model> model_;
 		std::string name_;
 
 		Shape input_shape_;

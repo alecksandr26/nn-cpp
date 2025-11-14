@@ -66,20 +66,29 @@ nn::optimizers::PerceptronOptimizer<T>::PerceptronOptimizer(T learning_rate)
 template <typename T>
 PerceptronOptimizer<T> &nn::optimizers::PerceptronOptimizer<T>::register_funcs(void)
 {
-	register_func<void, Mat<T> &, const Mat<T> &, const Mat<T> &>
-		("update", [this](Mat<T> &weights, const Mat<T> &error, const Mat<T> &input) -> void {
-			// error = e = d - y
-			
-			// weights += weights
-			// Since the error has a shape (n, 1)
+	register_func<void, Mat<T> &, const Mat<T> &, const Mat<T> &>(
+		"update",
+		[this](Mat<T> &weights, const Mat<T> &error, const Mat<T> &input) -> void {
+			// error = (d - y)
+			// Δw = η * e * x^T
 			for (std::size_t i = 0; i < weights.rows(); i++) {
 				Mat<T> &row = weights.get_row(i);
-				row += input.transpose_copy() * (static_cast<T>(learning_rate_) * error(i, 0)); // Element wise add + scalar mul
+				row += input.transpose_copy() *
+					   (static_cast<T>(learning_rate_) * error(i, 0));
 			}
 		});
-	
+
+	register_func<void, Mat<T> &, const Mat<T> &>(
+		"update_bias",
+		[this](Mat<T> &bias, const Mat<T> &error) -> void {
+			// Bias update rule:
+			// Δb = η * e
+			bias += error * static_cast<T>(learning_rate_);
+		});
+
 	return *this;
 }
+
 
 template class nn::optimizers::PerceptronOptimizer<float>;
 // template class nn::optimizers::PerceptronOptimizer<double>;
@@ -96,24 +105,30 @@ nn::optimizers::GradientDescentOptimizer<T>::GradientDescentOptimizer(T learning
 template <typename T>
 GradientDescentOptimizer<T> &nn::optimizers::GradientDescentOptimizer<T>::register_funcs(void)
 {
-	register_func<void, Mat<T> &, const Mat<T> &, const Mat<T> &>
-		("update", [this](Mat<T> &weights, const Mat<T> &grad, const Mat<T> &input) -> void {
-			// Here we recieve the grad
-			// grad = dL/dZ = dL/dA_{l + 1} * dA/Z
-			// where dL/dA_{l + 1} should be derivate from the above layers
-			// dL/dW = dL/dZ * dZ/dW
-			// here dZ/dW = X^T
-			// for dL/dB = dL/dZ, since d(W . X + B)/dB = 1.0
-
-			// w_{k + 1} = w_{k} - l * dL/dW
-			for (std::size_t i = 0; i < weights.rows(); i++) {
-				Mat<T> &row = weights.get_row(i);
-				row -= input.transpose_copy() * (static_cast<T>(learning_rate_) * grad(i, 0)); // Element wise add + scalar mul
-			}
+	register_func<void, Mat<T> &, const Mat<T> &, const Mat<T> &>(
+		"update",
+		[this](Mat<T> &weights, const Mat<T> &grad, const Mat<T> &input) -> void {
+			// dL_dZ : (m x 1)
+			// X^T    : (1 x n)
+			// dL_dW  : (m x n)
+			Mat<T> dL_dW = grad.dot(input.transpose_copy()); // (m x n)
+			weights -= dL_dW * static_cast<T>(learning_rate_);
 		});
-	
+
+	register_func<void, Mat<T> &, const Mat<T> &>(
+		"update_bias",
+		[this](Mat<T> &bias, const Mat<T> &grad) -> void {
+			// For the bias:
+			// dL/dB = dL/dZ, since ∂(W·X + B)/∂B = 1
+			// So:
+			//    B_{k + 1} = B_{k} - η * dL/dB
+			bias -= grad * static_cast<T>(learning_rate_);
+		});
+
 	return *this;
 }
+
+
 
 template class nn::optimizers::GradientDescentOptimizer<float>;
 // template class nn::optimizers::GradientDescentOptimizer<float>;

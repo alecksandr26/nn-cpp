@@ -15,7 +15,7 @@ namespace nn::models {
 	using namespace loss_funcs;
 
 	template <typename T>
-	class WeightedModel : public WeightedLayer {
+	class WeightedModel : public WeightedLayer, public std::enable_shared_from_this<WeightedModel<T>>  {
 	public:
 		using WeightedLayer::WeightedLayer;
 		virtual ~WeightedModel(void) = 0;
@@ -83,6 +83,26 @@ namespace nn::models {
 	private:
 		Adeline &register_funcs(void) override;
 		std::unique_ptr<Dense<T>> dense_;
+	};
+
+
+	template <typename T>
+	class Sequential : public WeightedModel<T> {
+	public:
+		using WeightedModel<T>::WeightedModel;
+		
+		Sequential(std::initializer_list<std::unique_ptr<Layer>> layers_init); // 👈 nueva sobrecarga
+
+		Sequential &build(const Shape &input_shape, const Shape &output_shape) override;
+		Sequential &build(std::size_t input_size, std::size_t output_size) override;
+		Sequential &build(void) override;
+		Sequential &fit(const std::shared_ptr<std::vector<Mat<T>>> X_train, const std::shared_ptr<std::vector<Mat<T>>> Y_train, std::size_t nepochs = 100, std::size_t batch_size = 1) override;
+		
+		const std::vector<std::unique_ptr<Layer>> &get_layers(void) const;
+		
+	private:
+		Sequential &register_funcs(void) override;
+		std::vector<std::unique_ptr<Layer>> layers_;
 	};
 }
 

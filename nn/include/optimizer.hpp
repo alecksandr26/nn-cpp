@@ -23,23 +23,40 @@ namespace nn::optimizers {
 		const std::string &get_name(void) const;
 		double get_learning_rate(void) const;
 
-		/**
-		 * Update the weights of the layer.
-		 * 
-		 * @param weights        The current weight matrix of the layer.
-		 * @param signal_update  The "update signal" for the weights. 
-		 *                       This can be:
-		 *                         - The gradient of the loss with respect to the layer's output (from backpropagation),
-		 *                         - The derivative of the output of the current layer with respect to its inputs,
-		 *                         - Or a simple error/correction signal like (y_true - y_pred) in a perceptron.
-		 * @param input          The input that produced the current output (or the relevant activations from the previous layer),
-		 *                       used to compute weight updates in most learning rules.
+				/**
+		 * @brief Update the weights of the layer.
+		 *
+		 * Performs a parameter update on the layer’s weight matrix
+		 * using the provided gradient signal and input activations.
+		 *
+		 * @tparam T  Numeric type of the matrix (e.g., float or double)
+		 * @param weights        The weight matrix to be updated.
+		 * @param signal_update  The gradient signal (e.g., dL/dZ).
+		 * @param input          The input activations (from the previous layer).
 		 */
 		template <typename T>
 		void update(Mat<T> &weights, const Mat<T> &signal_update, const Mat<T> &input)
 		{
 			get_func<void, Mat<T> &, const Mat<T> &, const Mat<T> &>
 				("update", __FILE__, __LINE__)(weights, signal_update, input);
+		}
+
+		/**
+		 * @brief Update the bias vector of the layer.
+		 *
+		 * This overload is used for biases, where the update does not depend
+		 * on the input activations. The update rule typically follows:
+		 *     b ← b - η * dL/db
+		 *
+		 * @tparam T  Numeric type of the matrix (e.g., float or double)
+		 * @param bias           The bias vector to be updated.
+		 * @param signal_update  The gradient signal (e.g., dL/dZ).
+		 */
+		template <typename T>
+		void update(Mat<T> &bias, const Mat<T> &signal_update)
+		{
+			get_func<void, Mat<T> &, const Mat<T> &>
+				("update_bias", __FILE__, __LINE__)(bias, signal_update);
 		}
 	protected:
 		std::string name_;

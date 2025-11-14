@@ -72,12 +72,20 @@ namespace nn::layers {
 	class WeightedLayer : public Layer {
 	public:
 		using Layer::Layer;
+
+		WeightedLayer(const Shape &input_shape, const Shape &output_shape, std::string name, std::shared_ptr<Layer> activation_func = nullptr, std::shared_ptr<RandInitializer> rand_init = nullptr);
+		WeightedLayer(std::size_t input_size, std::size_t output_size, std::string name, std::shared_ptr<Layer> activation_func = nullptr, std::shared_ptr<RandInitializer> rand_init = nullptr);
+		WeightedLayer(const Shape &input_shape, std::string name, std::shared_ptr<Layer> activation_func = nullptr, std::shared_ptr<RandInitializer> rand_init = nullptr);
+		WeightedLayer(std::size_t input_size, std::string name, std::shared_ptr<Layer> activation_func = nullptr, std::shared_ptr<RandInitializer> rand_init = nullptr);
 		
 		virtual ~WeightedLayer(void) = 0;
 		
 		// A weighted layer needs an optimizer to optimize the weights
 		WeightedLayer &set_optimizer(std::shared_ptr<Optimizer> optimizer);
 		std::shared_ptr<Optimizer> get_optimizer(void) const;
+
+		bool has_activation_func(void) const;
+		std::shared_ptr<Layer> get_activation_func(void) const;
 		
 		// the signal update could be any error, or gradient to be used by the optimizer
 		template <typename T>
@@ -97,6 +105,8 @@ namespace nn::layers {
 		template <typename T>
 		std::unique_ptr<Mat<T>> add_weights(std::size_t input_size, std::shared_ptr<RandInitializer> rand_init = nullptr) const;
 		std::shared_ptr<Optimizer> optimizer_;
+		std::shared_ptr<Layer> activation_func_;
+		std::shared_ptr<RandInitializer> rand_init_;
 	};
 
 	// A dense layer of neurons
@@ -113,9 +123,7 @@ namespace nn::layers {
 		~Dense(void) override = default;
 		
 		Mat<T> &get_weights(void) const;
-		Mat<T> &get_bias(void) const;
-		bool has_activation_func(void) const;
-		std::shared_ptr<Layer> get_activation_func(void) const;
+		Mat<T> &get_bias(void) const;		
 		
 		Dense &build(const Shape &input_shape, const Shape &output_shape) override;
 		Dense &build(std::size_t input_size, std::size_t output_size) override;
@@ -123,8 +131,6 @@ namespace nn::layers {
 	private:
 		Dense &register_funcs(void) override;
 		
-		std::shared_ptr<Layer> activation_func_;
-		std::shared_ptr<RandInitializer> rand_init_;
 		std::unique_ptr<Mat<T>> weights_;
 		std::unique_ptr<Mat<T>> bias_;
 	};
